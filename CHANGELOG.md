@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] — 2026-10-18
+
+### Fixed
+
+- The virtual WMI node now receives a seat/uaccess ACL, so fan, ring and
+  keyboard-slide reads work immediately after install without a re-login.
+- Slide-triggered Turbo no longer requires the separate "allow OC" switch;
+  `auto_turbo` is the opt-in, and AC/battery checks still apply.
+
+### Verified
+
+- Hardware slide transition on the PH717-71: `Some(true)` applied Turbo,
+  `Some(false)` restored the captured CPU/GPU state.
+
 ## [0.1.1] — 2026-10-18
 
 ### Added
@@ -35,10 +49,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- The virtual WMI node now receives a seat/uaccess ACL, so fan, ring and
-  keyboard-slide reads work immediately after install without a re-login.
-- Slide-triggered Turbo no longer requires the separate "allow OC" switch;
-  `auto_turbo` is the opt-in, and AC/battery checks still apply.
 - The frame border could cut through headings and controls; the content is now
   inset inside the frame.
 - Fan cards clipped "duty %" and stacked Apply unevenly; both cards now fill
