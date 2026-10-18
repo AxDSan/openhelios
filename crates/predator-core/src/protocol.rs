@@ -128,6 +128,11 @@ impl Rgb {
         g: 174,
         b: 199,
     };
+    pub const TURBO: Rgb = Rgb {
+        r: 255,
+        g: 70,
+        b: 20,
+    };
 
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }

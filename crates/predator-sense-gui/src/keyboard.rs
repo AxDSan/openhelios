@@ -113,8 +113,8 @@ pub fn draw_keyboard(
 
 pub fn metric(ui: &mut egui::Ui, label: &str, value: impl Into<String>, accent: Color32) {
     egui::Frame::group(ui.style())
-        .fill(Color32::from_rgb(24, 25, 29))
-        .stroke(Stroke::new(1.0, Color32::from_rgb(45, 47, 54)))
+        .fill(Color32::from_rgb(12, 18, 24))
+        .stroke(Stroke::new(1.0, Color32::from_rgb(24, 56, 66)))
         .inner_margin(egui::Margin::same(10))
         .show(ui, |ui| {
             ui.set_min_width(142.0);
@@ -182,4 +182,112 @@ pub fn sparkline(ui: &mut egui::Ui, history: &VecDeque<HistoryPoint>) {
         );
         lx += 62.0;
     }
+}
+
+/// A PredatorSense-style circular gauge.
+pub fn gauge(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: f32,
+    max: f32,
+    unit: &str,
+    sub: &str,
+    color: Color32,
+) {
+    let width = ui.available_width().clamp(180.0, 320.0);
+    ui.vertical_centered(|ui| {
+        let (response, painter) = ui.allocate_painter(Vec2::new(width, 210.0), Sense::hover());
+        let rect = response.rect;
+        let radius = ((rect.height() - 44.0) / 1.72).min(rect.width() * 0.38);
+        let center = Pos2::new(rect.center().x, rect.top() + 27.0 + radius);
+        let start = std::f32::consts::PI * 0.75;
+        let end = std::f32::consts::PI * 2.25;
+
+        let arc = |from: f32, to: f32, stroke: Stroke| {
+            let mut points = Vec::with_capacity(64);
+            for i in 0..=64 {
+                let t = i as f32 / 64.0;
+                let a = from + (to - from) * t;
+                points.push(center + Vec2::new(a.cos(), a.sin()) * radius);
+            }
+            painter.add(egui::Shape::line(points, stroke));
+        };
+
+        arc(start, end, Stroke::new(11.0, Color32::from_rgb(19, 30, 38)));
+        for i in 0..=10 {
+            let a = start + (end - start) * (i as f32 / 10.0);
+            let dir = Vec2::new(a.cos(), a.sin());
+            painter.line_segment(
+                [
+                    center + dir * (radius * 0.80),
+                    center + dir * (radius * 0.90),
+                ],
+                Stroke::new(1.0, Color32::from_rgb(45, 70, 82)),
+            );
+        }
+
+        let ratio = if max <= 0.0 {
+            0.0
+        } else {
+            (value / max).clamp(0.0, 1.0)
+        };
+        arc(
+            start,
+            start + (end - start) * ratio,
+            Stroke::new(11.0, color),
+        );
+        let angle = start + (end - start) * ratio;
+        let dir = Vec2::new(angle.cos(), angle.sin());
+        let needle_start = center + dir * (radius * 0.45);
+        let needle_end = center + dir * (radius * 0.92);
+        painter.line_segment(
+            [center, needle_start],
+            Stroke::new(
+                1.0,
+                Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 90),
+            ),
+        );
+        painter.line_segment(
+            [needle_start, needle_end],
+            Stroke::new(5.0, Color32::from_rgb(6, 10, 14)),
+        );
+        painter.line_segment([needle_start, needle_end], Stroke::new(3.0, color));
+        painter.circle_filled(center, 5.0, color);
+
+        painter.text(
+            Pos2::new(center.x, center.y - 48.0),
+            Align2::CENTER_CENTER,
+            format!("{value:.0}"),
+            FontId::proportional(32.0),
+            Color32::WHITE,
+        );
+        painter.text(
+            Pos2::new(center.x, center.y - 20.0),
+            Align2::CENTER_CENTER,
+            unit,
+            FontId::proportional(12.0),
+            Color32::from_gray(160),
+        );
+        painter.text(
+            Pos2::new(rect.center().x, rect.top() + 8.0),
+            Align2::CENTER_CENTER,
+            label,
+            FontId::proportional(13.0),
+            Color32::from_gray(190),
+        );
+        painter.text(
+            Pos2::new(rect.center().x, rect.bottom() - 8.0),
+            Align2::CENTER_CENTER,
+            sub,
+            FontId::proportional(11.0),
+            Color32::from_gray(145),
+        );
+        painter.text(
+            Pos2::new(rect.right() - 6.0, center.y + radius * 0.55),
+            Align2::RIGHT_CENTER,
+            "MAX",
+            FontId::proportional(9.0),
+            Color32::from_gray(130),
+        );
+    });
 }

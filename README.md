@@ -69,7 +69,7 @@ feature/output report.
 | **Sensors** | EC CPU/system/GPU temperatures, CPU/GPU fan RPM, clocks, package power, RAM, battery/AC | Verified |
 | **Firmware OC** | Normal/Fast/Turbo CPU and GPU levels, Max-Q mode, GPU mode, POST sound | Implemented |
 | **Linux OC equivalents** | RAPL PL1/PL2, NVIDIA power limit, locked GPU clocks | Implemented |
-| **Profiles** | TOML profiles, JSON snapshots, export/import, boot-time apply (opt-in) | Implemented |
+| **Profiles** | TOML profiles, JSON snapshots, export/import, auto-save, boot-time apply (enabled) | Implemented |
 | **Recovery** | `panic`, snapshot/restore, dry-run, read-only, `--allow-oc` gate | Implemented |
 
 See [`docs/PARITY.md`](docs/PARITY.md) for the full Windows-module inventory,
@@ -136,7 +136,7 @@ The installer:
 - installs `predator-sense` and `predator-sense-gui` to `/usr/local/bin`;
 - creates the `predator-sense` group, adds the invoking user, and installs the
   udev rule (`99-predator-sense.rules`);
-- installs the desktop entry, the optional `predator-sense-apply.service`, and
+- installs the desktop entry, the `predator-sense-apply.service` (enabled), and
   the docs;
 - installs/refreshes the DKMS kernel module.
 
@@ -160,6 +160,23 @@ If `doctor` reports a permission error, run:
 sudo usermod -aG predator-sense "$USER"
 # log out and back in
 ```
+
+### Persistence
+
+The GUI saves every change to the active profile within a second; every
+successful CLI write also persists it. `sudo predator-sense ...` resolves the
+invoking user through `SUDO_USER`, so it writes **your** profile rather than
+`/root`. `predator-sense-apply.service` is enabled by the installer, waits for
+udev to settle, and applies `default.toml` at boot as root:
+
+```sh
+sudo systemctl disable --now predator-sense-apply.service   # opt out
+sudo systemctl status predator-sense-apply.service          # verify
+```
+
+The content area keeps a full-label sidebar and adds horizontal and vertical
+scrollbars plus a 16 px gutter inside the frame, so narrow windows never hide
+controls or draw the frame through a heading.
 
 ---
 
@@ -203,6 +220,11 @@ sudo predator-sense --allow-oc oc power pl1 55
 sudo predator-sense --allow-oc oc nvidia lock 300 1800
 predator-sense oc power status
 predator-sense oc nvidia status
+
+# Turbo (the keyboard slide also triggers it in the GUI)
+sudo predator-sense --allow-oc turbo apply
+predator-sense turbo status
+sudo predator-sense --allow-oc turbo restore
 
 # Safety
 predator-sense snapshot
@@ -295,7 +317,7 @@ crates/predator-sense/      CLI
 crates/predator-sense-gui/  egui control panel
 kmod/                       WMI-to-userspace bridge (GPL-2.0-or-later)
 packaging/                  install/uninstall, udev, desktop entry
-systemd/                    opt-in boot-time profile
+systemd/                    boot-time profile service (enabled)
 docs/                       protocol, architecture, parity, recovery, screenshots
 legacy/                     pre-Rust Python toolkit (reference only)
 ```

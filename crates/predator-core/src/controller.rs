@@ -8,7 +8,7 @@ use crate::error::{Error, Result};
 use crate::hid::HidKeyboard;
 use crate::monitor::{Monitor, Sample};
 use crate::oc;
-use crate::profile::{FanKind, OcProfile, PowerProfile, Profile};
+use crate::profile::{FanKind, LinuxProfile, MagForceProfile, OcProfile, PowerProfile, Profile};
 use crate::protocol::Rgb;
 use crate::safety::{self, SafetyPolicy, Snapshot};
 use crate::wmi::{hexs, AcerGaming};
@@ -133,6 +133,78 @@ impl Controller {
             }
         }
 
+        self.apply_visuals(&profile)?;
+        if self.wmi.is_some() {
+            self.apply_oc(&profile.oc)?;
+            self.apply_power(&profile.power)?;
+        } else {
+            self.note("WMI unavailable; OC skipped");
+        }
+        if let Err(e) = self.apply_magforce(&profile.magforce) {
+            self.note(format!("MagForce settings skipped: {e}"));
+        }
+        self.apply_linux(&profile.linux)?;
+        Ok(())
+    }
+
+    pub fn apply_magforce(&mut self, m: &MagForceProfile) -> Result<()> {
+        self.policy.require_writes()?;
+        if self.policy.is_dry_run() {
+            self.note(format!(
+                "dry-run: MagForce actuation {} switch {} linear {} analog {} gamekeys {:?}",
+                m.actuation, m.switch_mode, m.linear_mode, m.analog_curve, m.gamekeys
+            ));
+            return Ok(());
+        }
+        let Some(hid) = &self.hid else {
+            return Err(Error::HidUnavailable);
+        };
+        hid.set_actuation_point(m.actuation)?;
+        hid.set_key_setting(m.switch_mode, m.linear_mode, m.joystick as u8)?;
+        hid.set_analog_curve(m.analog_curve)?;
+        hid.set_magforce_replace_mode(m.replace_mode, m.replace_30s)?;
+        hid.set_gamekeys(m.gamekeys)?;
+        self.note("MagForce profile applied");
+        Ok(())
+    }
+
+    pub fn apply_linux(&mut self, l: &LinuxProfile) -> Result<()> {
+        self.policy.require_writes()?;
+        if self.policy.is_dry_run() {
+            self.note(format!("dry-run: Linux CPU profile {l:?}"));
+            return Ok(());
+        }
+        let mut errors = Vec::new();
+        if let Err(e) = oc::set_governor(&l.governor) {
+            errors.push(format!("governor: {e}"));
+        }
+        if let Err(e) = oc::set_epp(&l.epp) {
+            errors.push(format!("epp: {e}"));
+        }
+        if let Err(e) = oc::set_no_turbo(l.no_turbo) {
+            errors.push(format!("no_turbo: {e}"));
+        }
+        if let Some(freq) = l.max_freq_khz {
+            if let Err(e) = oc::set_max_freq_khz(freq) {
+                errors.push(format!("max_freq: {e}"));
+            }
+        }
+        if errors.is_empty() {
+            self.note("Linux CPU profile applied");
+        } else {
+            self.note(format!(
+                "Linux CPU profile partially applied ({}); run as root or use the GUI's administrator path",
+                errors.join("; ")
+            ));
+        }
+        Ok(())
+    }
+
+    /// Apply just the visual/fan part of a profile (lighting, ring, heat-pipe,
+    /// fan curves). Used by the Turbo watcher to restore the pre-slide look
+    /// without overwriting the privileged power/clock restore.
+    pub fn apply_visuals(&mut self, profile: &Profile) -> Result<()> {
+        self.policy.require_writes()?;
         if self.hid.is_some() {
             self.apply_lighting(profile.lighting.state())?;
         } else {
@@ -145,12 +217,41 @@ impl Controller {
                 profile.ring.color,
             )?;
             self.apply_heatpipe(profile.heatpipe)?;
-            self.apply_fan_profile(&profile)?;
-            self.apply_oc(&profile.oc)?;
-            self.apply_power(&profile.power)?;
+            self.apply_fan_profile(profile)?;
         } else {
-            self.note("WMI unavailable; ring/heatpipe/fans/OC skipped");
+            self.note("WMI unavailable; ring/heatpipe/fans skipped");
         }
+        Ok(())
+    }
+
+    /// Turbo visual state used while the keyboard is slid down: orange wave,
+    /// ring/heat-pipe/fan lights on, and both fans at 100%.
+    pub fn apply_turbo_visuals(&mut self) -> Result<()> {
+        self.policy.require_writes()?;
+        if self.policy.is_dry_run() {
+            self.note("dry-run: Turbo visual state (fans 100%, heat-pipe/ring on, orange wave)");
+            return Ok(());
+        }
+        let color = Rgb::TURBO;
+        let mut msgs = Vec::new();
+        if let Some(hid) = &self.hid {
+            hid.effect(9, 5, 100, 1, color)?;
+            msgs.push("Turbo: keyboard orange wave".to_string());
+        }
+        if let Some(wmi) = self.wmi.clone() {
+            for group in ["ring", "heatpipe", "cpufan", "gpufan"] {
+                let _ = wmi.set_led_group(group, true);
+                let _ = wmi.set_led_group_color(group, color, Some(100), true);
+            }
+            let _ = wmi.set_ring_brightness(100);
+            msgs.push("Turbo: ring / heat-pipe / fan lights on".to_string());
+        }
+        for m in msgs {
+            self.note(m);
+        }
+        self.apply_fan(FanKind::Cpu, false, 100)?;
+        self.apply_fan(FanKind::Gpu, false, 100)?;
+        self.note("Turbo: fans 100%");
         Ok(())
     }
 

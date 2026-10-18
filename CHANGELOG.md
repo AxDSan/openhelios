@@ -4,6 +4,51 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-10-18
+
+### Added
+
+- Auto-persistence: GUI changes are written to the active profile within a
+  second, and every successful CLI write persists too.
+- Boot apply: `predator-sense-apply.service` is installed and enabled by
+  default, waits for udev, and applies `default.toml` as root.
+- `sudo predator-sense ...` now resolves `SUDO_USER`, writing the invoking
+  user's profile and snapshots instead of `/root`.
+- Turbo: GUI slide watcher and `predator-sense turbo apply|restore|status|watch`
+  (fans 100 %, chassis lights, orange keyboard wave, CPU/GPU performance
+  limits, captured-state restore).
+- PredatorSense-inspired dark theme: full-label sidebar, cyan accent frame,
+  270° gauges, and GPU Normal/Fast/Extreme cards.
+- Horizontal and vertical content scrollbars, a 16 px gutter inside the frame,
+  and fully wrapped control rows for narrow windows.
+
+### Changed
+
+- GUI layout: Home, Lighting, Overclocking, Fan Control, Power / GPU, MagForce,
+  Profiles, Diagnostics, Recovery; the full sidebar is always shown so labels
+  stay readable.
+- Fan auto clears the EC duty register, preventing a stuck 100 % duty after
+  Turbo or a manual run.
+- GPU mode cards apply and persist power/clock limits through the privileged
+  CLI.
+- Version 0.1.1.
+
+### Fixed
+
+- The frame border could cut through headings and controls; the content is now
+  inset inside the frame.
+- Fan cards clipped "duty %" and stacked Apply unevenly; both cards now fill
+  equal columns.
+- Gauge arcs were clipped and the needle collided with the readout; gauges are
+  centered and the needle has a separating outline.
+- Long warnings/status text clipped; the GPU status line is human-readable.
+- Test profiles were removed from the default store.
+
+### Verified
+
+- Per-key RGB, ring/heat-pipe, MagForce, fans auto/manual, Turbo apply/restore,
+  RAPL PL1/PL2 and the boot service on the PH717-71.
+
 ## [0.1.0] — 2026-10-18
 
 Initial public release.

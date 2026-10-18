@@ -41,6 +41,7 @@ pub struct Sample {
     pub gpu_fan_rpm: Option<u32>,
     pub cpu_fan_rate: Option<u32>,
     pub gpu_fan_rate: Option<u32>,
+    pub slide_keyboard: Option<bool>,
     pub fans: Vec<FanReading>,
     pub battery_percent: Option<f32>,
     pub ac_online: Option<bool>,
@@ -122,6 +123,7 @@ impl Monitor {
             s.ec_gpu_temp = health(10).map(|v| v as f32);
             s.cpu_fan_rate = health(12);
             s.gpu_fan_rate = health(16);
+            s.slide_keyboard = w.get_slide_keyboard().ok();
             if let Some(t) = s.ec_cpu_temp {
                 s.cpu_temp = Some(t);
             }

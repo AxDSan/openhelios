@@ -3,7 +3,7 @@ members = ["crates/predator-core", "crates/predator-sense", "crates/predator-sen
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "GPL-2.0-or-later"
 authors = ["PredatorSense Linux contributors"]

@@ -215,6 +215,80 @@ pub struct PowerProfile {
     pub gpu_lock_max_mhz: Option<f32>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MagForceProfile {
+    #[serde(default = "default_actuation")]
+    pub actuation: u8,
+    #[serde(default)]
+    pub switch_mode: u8,
+    #[serde(default)]
+    pub linear_mode: u8,
+    #[serde(default)]
+    pub joystick: bool,
+    #[serde(default)]
+    pub analog_curve: u8,
+    #[serde(default)]
+    pub replace_mode: bool,
+    #[serde(default)]
+    pub replace_30s: bool,
+    #[serde(default = "default_gamekeys")]
+    pub gamekeys: [u8; 4],
+}
+
+fn default_actuation() -> u8 {
+    46
+}
+
+fn default_gamekeys() -> [u8; 4] {
+    [0, 1, 2, 3]
+}
+
+impl Default for MagForceProfile {
+    fn default() -> Self {
+        Self {
+            actuation: default_actuation(),
+            switch_mode: 0,
+            linear_mode: 0,
+            joystick: false,
+            analog_curve: 0,
+            replace_mode: false,
+            replace_30s: false,
+            gamekeys: default_gamekeys(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LinuxProfile {
+    #[serde(default = "default_governor")]
+    pub governor: String,
+    #[serde(default = "default_epp")]
+    pub epp: String,
+    #[serde(default)]
+    pub no_turbo: bool,
+    #[serde(default)]
+    pub max_freq_khz: Option<u64>,
+}
+
+fn default_governor() -> String {
+    "powersave".to_string()
+}
+
+fn default_epp() -> String {
+    "balance_performance".to_string()
+}
+
+impl Default for LinuxProfile {
+    fn default() -> Self {
+        Self {
+            governor: default_governor(),
+            epp: default_epp(),
+            no_turbo: false,
+            max_freq_khz: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct OcProfile {
     #[serde(default)]
@@ -247,6 +321,16 @@ pub struct Profile {
     pub oc: OcProfile,
     #[serde(default)]
     pub power: PowerProfile,
+    #[serde(default)]
+    pub magforce: MagForceProfile,
+    #[serde(default)]
+    pub linux: LinuxProfile,
+    #[serde(default = "default_auto_turbo")]
+    pub auto_turbo: bool,
+}
+
+fn default_auto_turbo() -> bool {
+    true
 }
 
 fn default_name() -> String {
@@ -263,6 +347,9 @@ impl Default for Profile {
             fan: FanProfile::default(),
             oc: OcProfile::default(),
             power: PowerProfile::default(),
+            magforce: MagForceProfile::default(),
+            linux: LinuxProfile::default(),
+            auto_turbo: true,
         }
     }
 }

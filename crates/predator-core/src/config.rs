@@ -5,12 +5,42 @@ fn xdg(var: &str, fallback: &str) -> PathBuf {
     std::env::var_os(var)
         .map(PathBuf::from)
         .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| {
-            let home = std::env::var_os("HOME")
-                .map(PathBuf::from)
-                .unwrap_or_else(|| PathBuf::from("."));
-            home.join(fallback)
-        })
+        .unwrap_or_else(|| home_dir().join(fallback))
+}
+
+/// Home of the invoking user.
+///
+/// `sudo predator-sense ...` otherwise writes profiles and snapshots under
+/// `/root`, which is why CLI changes appeared not to persist. Resolve
+/// `SUDO_USER` through `/etc/passwd` and fall back to `HOME`.
+fn home_dir() -> PathBuf {
+    if let Some(user) = std::env::var_os("SUDO_USER") {
+        let user = user.to_string_lossy();
+        if !user.is_empty() && user != "root" {
+            if let Some(home) = passwd_home(&user) {
+                return home;
+            }
+        }
+    }
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn passwd_home(user: &str) -> Option<PathBuf> {
+    let text = fs::read_to_string("/etc/passwd").ok()?;
+    for line in text.lines() {
+        let mut fields = line.split(':');
+        if fields.next() != Some(user) {
+            continue;
+        }
+        let _password = fields.next()?;
+        let _uid = fields.next()?;
+        let _gid = fields.next()?;
+        let _gecos = fields.next()?;
+        return fields.next().map(PathBuf::from);
+    }
+    None
 }
 
 pub fn config_dir() -> PathBuf {

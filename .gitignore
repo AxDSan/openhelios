@@ -13,3 +13,4 @@ __pycache__/
 codedb.snapshot
 .DS_Store
 *.swp
+reference.png

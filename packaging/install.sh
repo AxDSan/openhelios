@@ -50,9 +50,15 @@ echo "==> installing desktop entry"
 $SUDO install -Dm644 "$ROOT/packaging/predator-sense.desktop" /usr/share/applications/predator-sense.desktop
 $SUDO update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 
-echo "==> installing systemd unit (opt-in)"
-$SUDO install -Dm644 "$ROOT/systemd/predator-sense-apply.service" /etc/systemd/system/predator-sense-apply.service
+echo "==> installing and enabling the boot profile service"
+TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+sed "s|__HOME__|$TARGET_HOME|" \
+    "$ROOT/systemd/predator-sense-apply.service" \
+    | $SUDO tee /etc/systemd/system/predator-sense-apply.service >/dev/null
 $SUDO systemctl daemon-reload
+$SUDO systemctl disable --now acer-ring-off.service 2>/dev/null || true
+$SUDO systemctl disable --now acer-lighting-apply.service 2>/dev/null || true
+$SUDO systemctl enable predator-sense-apply.service
 
 if command -v dkms >/dev/null 2>&1; then
     echo "==> installing DKMS module"
@@ -78,7 +84,7 @@ echo "Access is granted to the predator-sense group (and seat uaccess)."
 echo "If the keyboard is not detected, log out and back in, then run:"
 echo "  predator-sense doctor"
 echo
-echo "Optional boot-time profile:"
-echo "  sudo systemctl enable --now predator-sense-apply.service"
+echo "The saved default profile is applied at boot by predator-sense-apply.service."
+echo "Disable it with: sudo systemctl disable --now predator-sense-apply.service"
 echo
 echo "Read docs/RECOVERY.md before using overclocking or changing boot services."

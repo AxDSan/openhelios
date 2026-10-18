@@ -1,5 +1,5 @@
 [Unit]
-Description=PredatorSense Linux: apply the Acer Predator lighting/fan profile
+Description=PredatorSense Linux: apply the saved lighting/fan/overclock profile
 Documentation=file:///usr/local/share/doc/predator-sense/RECOVERY.md
 After=systemd-modules-load.service
 Wants=systemd-modules-load.service
@@ -7,9 +7,11 @@ ConditionPathExists=/usr/local/bin/predator-sense
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/predator-sense profile apply default
+Environment=HOME=__HOME__
+# Wait for the keyboard HID and WMI device nodes to appear at boot.
+ExecStartPre=-/usr/bin/udevadm settle --timeout=10
+ExecStart=/usr/local/bin/predator-sense --allow-oc profile apply default
 RemainAfterExit=yes
-# The WMI mailbox needs root; the HID udev rule is used for interactive runs.
 Nice=10
 
 [Install]

@@ -120,7 +120,7 @@ originals are left untouched.
   systemd unit and DKMS module.
 - `packaging/99-predator-sense.rules` grants the group and seat uaccess access
   to the vendor HID and the WMI device.
-- `systemd/predator-sense-apply.service` is an **opt-in** oneshot unit that
+- `systemd/predator-sense-apply.service` is an enabled oneshot unit that
   applies the `default` profile at boot.
 - `packaging/uninstall.sh` removes the installed files and DKMS module while
   preserving user profiles and snapshots.

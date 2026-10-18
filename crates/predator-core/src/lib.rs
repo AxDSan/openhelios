@@ -21,6 +21,7 @@ pub mod oc;
 pub mod profile;
 pub mod protocol;
 pub mod safety;
+pub mod turbo;
 pub mod wmi;
 
 pub use config::{config_dir, ensure_dirs, profiles_dir, snapshots_dir, state_dir};
@@ -32,3 +33,4 @@ pub use oc::OcLevel;
 pub use profile::{FanProfile, LightingProfile, OcProfile, Profile, ProfileStore, RingProfile};
 pub use protocol::Rgb;
 pub use safety::{SafetyPolicy, Snapshot};
+pub use turbo::TurboState;

@@ -5,9 +5,10 @@ use anyhow::{bail, Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use predator_core::keymap::{self, KeyDef};
 use predator_core::lighting::{LightingMode, LightingState};
-use predator_core::profile::{FanKind, OcProfile, Profile, ProfileStore};
+use predator_core::profile::{FanKind, LightingProfile, OcProfile, Profile, ProfileStore};
 use predator_core::protocol::{Rgb, EFFECTS};
 use predator_core::safety::{self, SafetyPolicy};
+use predator_core::turbo::TurboState;
 use predator_core::wmi::hexs;
 use predator_core::{oc, Controller, Monitor};
 
@@ -79,6 +80,8 @@ enum Cmd {
     Hid(HidCmd),
     /// MagForce key actuation, switch mode, analog curve and game keys.
     Magforce(MagforceCmd),
+    /// Keyboard-slide Turbo state.
+    Turbo(TurboCmd),
     /// Capture a recovery snapshot.
     Snapshot {
         #[arg(long, default_value = "default")]
@@ -279,6 +282,36 @@ enum MagforceSub {
 }
 
 #[derive(Args, Debug)]
+struct TurboCmd {
+    #[command(subcommand)]
+    cmd: TurboSub,
+}
+
+#[derive(Subcommand, Debug)]
+enum TurboSub {
+    /// Show the keyboard-slide state and current CPU/GPU limits.
+    Status,
+    /// Capture the current state and apply the Turbo limits.
+    Apply {
+        /// Apply only the privileged CPU/GPU limits; leave lighting/fans to the caller.
+        #[arg(long)]
+        oc_only: bool,
+    },
+    /// Restore the state captured by `turbo apply`.
+    Restore {
+        #[arg(long)]
+        oc_only: bool,
+    },
+    /// Watch the keyboard slide and apply/restore automatically.
+    Watch {
+        #[arg(long)]
+        apply: bool,
+        #[arg(long)]
+        oc_only: bool,
+    },
+}
+
+#[derive(Args, Debug)]
 struct HidCmd {
     #[command(subcommand)]
     cmd: HidSub,
@@ -341,6 +374,15 @@ impl OnOff {
     }
 }
 
+fn persist<F: FnOnce(&mut Profile)>(f: F) {
+    let store = ProfileStore::default();
+    let mut profile = store.load_or_default("default");
+    f(&mut profile);
+    if let Err(e) = store.save(&profile) {
+        eprintln!("warning: could not save the default profile: {e}");
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let policy = SafetyPolicy {
@@ -362,6 +404,7 @@ fn main() -> Result<()> {
             | Cmd::Raw { .. }
             | Cmd::Hid(_)
             | Cmd::Magforce(_)
+            | Cmd::Turbo(_)
     );
     if hardware_write && c.policy.snapshot_before_write && !c.policy.dry_run {
         let p = Profile::default();
@@ -402,10 +445,23 @@ fn dispatch(cli: &Cli, c: &mut Controller) -> Result<()> {
             color,
         } => {
             let rgb = parse_rgb(color)?;
-            c.apply_ring(state.is_on(), *brightness, rgb)
-                .map_err(Into::into)
+            let r = c.apply_ring(state.is_on(), *brightness, rgb);
+            if r.is_ok() {
+                persist(|p| {
+                    p.ring.enabled = state.is_on();
+                    p.ring.brightness = *brightness;
+                    p.ring.color = rgb;
+                });
+            }
+            r.map_err(Into::into)
         }
-        Cmd::Heatpipe { state } => c.apply_heatpipe(state.is_on()).map_err(Into::into),
+        Cmd::Heatpipe { state } => {
+            let r = c.apply_heatpipe(state.is_on());
+            if r.is_ok() {
+                persist(|p| p.heatpipe = state.is_on());
+            }
+            r.map_err(Into::into)
+        }
         Cmd::Fan(f) => fan(c, &f.cmd),
         Cmd::Oc(o) => oc_cmd(c, &o.cmd),
         Cmd::Raw { method, bytes } => {
@@ -424,6 +480,7 @@ fn dispatch(cli: &Cli, c: &mut Controller) -> Result<()> {
         }
         Cmd::Hid(h) => hid(c, &h.cmd),
         Cmd::Magforce(m) => magforce(c, &m.cmd),
+        Cmd::Turbo(t) => turbo_cmd(c, &t.cmd),
         Cmd::Snapshot { profile } => {
             let store = ProfileStore::default();
             let p = store.load_or_default(profile);
@@ -526,6 +583,14 @@ fn print_sample(s: &predator_core::Sample) {
         opt(s.battery_percent),
         s.battery_status.as_deref().unwrap_or(""),
     );
+    println!(
+        "keyboard slide: {}",
+        match s.slide_keyboard {
+            Some(true) => "engaged",
+            Some(false) => "closed",
+            None => "unknown",
+        }
+    );
 }
 
 fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
@@ -556,7 +621,10 @@ fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
                 let tags = parse_tags(list)?;
                 state.set_keys(&tags, rgb);
             }
-            c.apply_lighting(state).map_err(Into::into)
+            c.apply_lighting(state.clone())
+                .map_err(anyhow::Error::from)?;
+            persist(|p| p.lighting = LightingProfile::from_state(&state));
+            Ok(())
         }
         LightingSub::Effect {
             id,
@@ -581,7 +649,10 @@ fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
                 brightness: *brightness,
                 ..Default::default()
             };
-            c.apply_lighting(state).map_err(Into::into)
+            c.apply_lighting(state.clone())
+                .map_err(anyhow::Error::from)?;
+            persist(|p| p.lighting = LightingProfile::from_state(&state));
+            Ok(())
         }
         LightingSub::Brightness { value } => {
             c.policy.require_writes()?;
@@ -592,6 +663,7 @@ fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
             let hid = c.hid.as_ref().context("keyboard HID device unavailable")?;
             hid.brightness(*value)?;
             c.note(format!("keyboard brightness {value}"));
+            persist(|p| p.lighting.brightness = *value);
             Ok(())
         }
         LightingSub::Off => {
@@ -599,7 +671,9 @@ fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
                 mode: LightingMode::Off,
                 ..Default::default()
             };
-            c.apply_lighting(state).map_err(Into::into)
+            c.apply_lighting(state).map_err(anyhow::Error::from)?;
+            persist(|p| p.lighting.mode = LightingMode::Off);
+            Ok(())
         }
         LightingSub::Key { tag, color } => {
             let rgb = parse_rgb(color)?;
@@ -609,7 +683,12 @@ fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
                 bail!("tag must be 0..={}", keymap::SLOT_COUNT - 1);
             }
             state.set_keys(&[*tag], rgb);
-            c.apply_lighting(state).map_err(Into::into)
+            c.apply_lighting(state).map_err(anyhow::Error::from)?;
+            persist(|p| {
+                p.lighting.mode = LightingMode::Static;
+                p.lighting.keys.insert(*tag, rgb);
+            });
+            Ok(())
         }
         LightingSub::List => {
             println!("tag  name                       x    y    w   h   label");
@@ -644,24 +723,50 @@ fn fan(c: &mut Controller, cmd: &FanSub) -> Result<()> {
             for kind in [FanKind::Cpu, FanKind::Gpu] {
                 c.apply_fan(kind, true, 0)?;
             }
+            persist(|p| {
+                for kind in [FanKind::Cpu, FanKind::Gpu] {
+                    p.fan.get_mut(kind).auto = true;
+                }
+            });
             Ok(())
         }
         FanSub::Quiet => {
             for kind in [FanKind::Cpu, FanKind::Gpu] {
                 c.apply_fan(kind, false, 35)?;
             }
+            persist(|p| {
+                for kind in [FanKind::Cpu, FanKind::Gpu] {
+                    let s = p.fan.get_mut(kind);
+                    s.auto = false;
+                    s.percent = 35;
+                }
+            });
             Ok(())
         }
         FanSub::Performance => {
             for kind in [FanKind::Cpu, FanKind::Gpu] {
                 c.apply_fan(kind, false, 90)?;
             }
+            persist(|p| {
+                for kind in [FanKind::Cpu, FanKind::Gpu] {
+                    let s = p.fan.get_mut(kind);
+                    s.auto = false;
+                    s.percent = 90;
+                }
+            });
             Ok(())
         }
         FanSub::Set { group, percent } => {
             let kind =
                 FanKind::parse(group).with_context(|| format!("unknown fan group {group:?}"))?;
-            c.apply_fan(kind, false, *percent).map_err(Into::into)
+            c.apply_fan(kind, false, *percent)
+                .map_err(anyhow::Error::from)?;
+            persist(|p| {
+                let s = p.fan.get_mut(kind);
+                s.auto = false;
+                s.percent = *percent;
+            });
+            Ok(())
         }
         FanSub::Status => {
             let wmi = c.wmi.as_ref().context("WMI device unavailable")?;
@@ -686,42 +791,65 @@ fn fan(c: &mut Controller, cmd: &FanSub) -> Result<()> {
 
 fn oc_cmd(c: &mut Controller, cmd: &OcSub) -> Result<()> {
     match cmd {
-        OcSub::Cpu { level } => oc_one(
-            c,
-            OcProfile {
-                cpu_level: *level,
-                ..Default::default()
-            },
-        ),
-        OcSub::Gpu { level } => oc_one(
-            c,
-            OcProfile {
-                gpu_level: *level,
-                ..Default::default()
-            },
-        ),
-        OcSub::Maxq { mode, level } => oc_one(
-            c,
-            OcProfile {
-                maxq_mode: Some(*mode),
-                maxq_level: Some(*level),
-                ..Default::default()
-            },
-        ),
-        OcSub::GpuMode { mode } => oc_one(
-            c,
-            OcProfile {
-                gpu_mode: Some(*mode),
-                ..Default::default()
-            },
-        ),
-        OcSub::Sound { state } => oc_one(
-            c,
-            OcProfile {
-                post_sound: Some(state.is_on()),
-                ..Default::default()
-            },
-        ),
+        OcSub::Cpu { level } => {
+            oc_one(
+                c,
+                OcProfile {
+                    cpu_level: *level,
+                    ..Default::default()
+                },
+            )?;
+            persist(|p| p.oc.cpu_level = *level);
+            Ok(())
+        }
+        OcSub::Gpu { level } => {
+            oc_one(
+                c,
+                OcProfile {
+                    gpu_level: *level,
+                    ..Default::default()
+                },
+            )?;
+            persist(|p| p.oc.gpu_level = *level);
+            Ok(())
+        }
+        OcSub::Maxq { mode, level } => {
+            oc_one(
+                c,
+                OcProfile {
+                    maxq_mode: Some(*mode),
+                    maxq_level: Some(*level),
+                    ..Default::default()
+                },
+            )?;
+            persist(|p| {
+                p.oc.maxq_mode = Some(*mode);
+                p.oc.maxq_level = Some(*level);
+            });
+            Ok(())
+        }
+        OcSub::GpuMode { mode } => {
+            oc_one(
+                c,
+                OcProfile {
+                    gpu_mode: Some(*mode),
+                    ..Default::default()
+                },
+            )?;
+            persist(|p| p.oc.gpu_mode = Some(*mode));
+            Ok(())
+        }
+        OcSub::Sound { state } => {
+            oc_one(
+                c,
+                OcProfile {
+                    post_sound: Some(state.is_on()),
+                    ..Default::default()
+                },
+            )?;
+            persist(|p| p.oc.post_sound = Some(state.is_on()));
+            Ok(())
+        }
         OcSub::Linux { cmd } => {
             c.policy.require_writes()?;
             if c.policy.dry_run {
@@ -736,21 +864,25 @@ fn oc_cmd(c: &mut Controller, cmd: &OcSub) -> Result<()> {
                 LinuxSub::Governor { value } => {
                     let n = oc::set_governor(value)?;
                     println!("set governor {value} on {n} policies");
+                    persist(|p| p.linux.governor = value.clone());
                     Ok(())
                 }
                 LinuxSub::Epp { value } => {
                     let n = oc::set_epp(value)?;
                     println!("set EPP {value} on {n} policies");
+                    persist(|p| p.linux.epp = value.clone());
                     Ok(())
                 }
                 LinuxSub::NoTurbo { state } => {
-                    oc::set_no_turbo(!state.is_on())?;
-                    println!("no_turbo={}", if state.is_on() { 0 } else { 1 });
+                    oc::set_no_turbo(state.is_on())?;
+                    println!("no_turbo={}", if state.is_on() { 1 } else { 0 });
+                    persist(|p| p.linux.no_turbo = state.is_on());
                     Ok(())
                 }
                 LinuxSub::MaxFreq { khz } => {
                     let n = oc::set_max_freq_khz(*khz)?;
                     println!("set max freq {khz} kHz on {n} policies");
+                    persist(|p| p.linux.max_freq_khz = Some(*khz));
                     Ok(())
                 }
             }
@@ -807,6 +939,7 @@ fn oc_power(c: &mut Controller, cmd: &PowerSub) -> Result<()> {
             let p = oc::PowerLimits::read();
             p.set_pl1(*watts, *window_ms)?;
             c.note(format!("PL1 set to {watts} W"));
+            persist(|p| p.power.pl1_w = Some(*watts));
             Ok(())
         }
         PowerSub::Pl2 { watts, window_ms } => {
@@ -818,6 +951,7 @@ fn oc_power(c: &mut Controller, cmd: &PowerSub) -> Result<()> {
             let p = oc::PowerLimits::read();
             p.set_pl2(*watts, *window_ms)?;
             c.note(format!("PL2 set to {watts} W"));
+            persist(|p| p.power.pl2_w = Some(*watts));
             Ok(())
         }
     }
@@ -841,6 +975,7 @@ fn oc_gpu(c: &mut Controller, cmd: &GpuSub) -> Result<()> {
             }
             oc::set_nvidia_power_limit(*watts)?;
             c.note(format!("GPU power limit set to {watts} W"));
+            persist(|p| p.power.gpu_power_w = Some(*watts));
             Ok(())
         }
         GpuSub::Lock { min, max } => {
@@ -851,6 +986,10 @@ fn oc_gpu(c: &mut Controller, cmd: &GpuSub) -> Result<()> {
             }
             oc::set_gpu_locked_clocks(*min, *max)?;
             c.note(format!("GPU clocks locked to {min}..{max} MHz"));
+            persist(|p| {
+                p.power.gpu_lock_min_mhz = Some(*min);
+                p.power.gpu_lock_max_mhz = Some(*max);
+            });
             Ok(())
         }
         GpuSub::Reset => {
@@ -861,6 +1000,10 @@ fn oc_gpu(c: &mut Controller, cmd: &GpuSub) -> Result<()> {
             }
             oc::reset_gpu_clocks()?;
             c.note("GPU clocks reset");
+            persist(|p| {
+                p.power.gpu_lock_min_mhz = None;
+                p.power.gpu_lock_max_mhz = None;
+            });
             Ok(())
         }
     }
@@ -893,6 +1036,7 @@ fn magforce(c: &mut Controller, cmd: &MagforceSub) -> Result<()> {
             }
             hid.set_actuation_point(*value)?;
             c.note(format!("MagForce actuation {value}"));
+            persist(|p| p.magforce.actuation = *value);
             Ok(())
         }
         MagforceSub::Setting {
@@ -909,6 +1053,11 @@ fn magforce(c: &mut Controller, cmd: &MagforceSub) -> Result<()> {
             c.note(format!(
                 "MagForce switch={switch_mode} linear={linear_mode} joystick={joystick}"
             ));
+            persist(|p| {
+                p.magforce.switch_mode = *switch_mode;
+                p.magforce.linear_mode = *linear_mode;
+                p.magforce.joystick = *joystick != 0;
+            });
             Ok(())
         }
         MagforceSub::Analog { mode } => {
@@ -919,6 +1068,7 @@ fn magforce(c: &mut Controller, cmd: &MagforceSub) -> Result<()> {
             }
             hid.set_analog_curve(*mode)?;
             c.note(format!("MagForce analog curve {mode}"));
+            persist(|p| p.magforce.analog_curve = *mode);
             Ok(())
         }
         MagforceSub::Replace {
@@ -936,6 +1086,10 @@ fn magforce(c: &mut Controller, cmd: &MagforceSub) -> Result<()> {
                 state.is_on(),
                 backlight_30s
             ));
+            persist(|p| {
+                p.magforce.replace_mode = state.is_on();
+                p.magforce.replace_30s = *backlight_30s;
+            });
             Ok(())
         }
         MagforceSub::Gamekeys { keys } => {
@@ -951,6 +1105,7 @@ fn magforce(c: &mut Controller, cmd: &MagforceSub) -> Result<()> {
             arr.copy_from_slice(keys);
             hid.set_gamekeys(arr)?;
             c.note(format!("MagForce game keys {keys:?}"));
+            persist(|p| p.magforce.gamekeys = arr);
             Ok(())
         }
         MagforceSub::Status => {
@@ -960,6 +1115,93 @@ fn magforce(c: &mut Controller, cmd: &MagforceSub) -> Result<()> {
             println!("30s backlight {}", hexs(&hid.get_backlight_30s()?));
             println!("game keys     {}", hexs(&hid.get_gamekeys()?));
             Ok(())
+        }
+    }
+}
+
+fn turbo_cmd(c: &mut Controller, cmd: &TurboSub) -> Result<()> {
+    match cmd {
+        TurboSub::Status => {
+            let slide = c.wmi.as_ref().and_then(|w| w.get_slide_keyboard().ok());
+            println!("keyboard slide: {:?}", slide);
+            print_cpu_status();
+            print_power_status();
+            Ok(())
+        }
+        TurboSub::Apply { oc_only } => {
+            c.policy.require_oc()?;
+            if c.policy.dry_run {
+                c.note("dry-run: Turbo apply");
+                return Ok(());
+            }
+            let state = TurboState::capture();
+            let path = state.save()?;
+            state.apply()?;
+            if !oc_only {
+                c.apply_turbo_visuals()?;
+            }
+            c.note(format!("Turbo applied (state {})", path.display()));
+            Ok(())
+        }
+        TurboSub::Restore { oc_only } => {
+            let state = TurboState::load()?;
+            state.restore()?;
+            if !oc_only {
+                let p = ProfileStore::default().load_or_default("default");
+                c.apply_visuals(&p)?;
+            }
+            c.note("Turbo restored");
+            Ok(())
+        }
+        TurboSub::Watch { apply, oc_only } => {
+            if *apply {
+                c.policy.require_oc()?;
+            }
+            let mut last = None;
+            loop {
+                let slide = c.wmi.as_ref().and_then(|w| w.get_slide_keyboard().ok());
+                if slide != last {
+                    println!("keyboard slide: {:?}", slide);
+                    last = slide;
+                    if *apply && !c.policy.dry_run {
+                        match slide {
+                            Some(true) => {
+                                match TurboState::capture().save() {
+                                    Ok(path) => println!("turbo state: {}", path.display()),
+                                    Err(e) => eprintln!("turbo state save failed: {e}"),
+                                }
+                                match TurboState::capture().apply() {
+                                    Ok(()) => println!("turbo applied"),
+                                    Err(e) => eprintln!("turbo apply failed: {e}"),
+                                }
+                                if !oc_only {
+                                    if let Err(e) = c.apply_turbo_visuals() {
+                                        eprintln!("turbo visuals failed: {e}");
+                                    }
+                                }
+                            }
+                            Some(false) => {
+                                match TurboState::load() {
+                                    Ok(state) => {
+                                        if let Err(e) = state.restore() {
+                                            eprintln!("turbo restore failed: {e}");
+                                        }
+                                    }
+                                    Err(e) => eprintln!("turbo state load failed: {e}"),
+                                }
+                                if !oc_only {
+                                    let p = ProfileStore::default().load_or_default("default");
+                                    if let Err(e) = c.apply_visuals(&p) {
+                                        eprintln!("turbo visual restore failed: {e}");
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                sleep(Duration::from_millis(500));
+            }
         }
     }
 }

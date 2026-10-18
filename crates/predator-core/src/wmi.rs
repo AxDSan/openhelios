@@ -154,6 +154,14 @@ impl AcerGaming {
         Ok(protocol::le_u64(&r))
     }
 
+    /// Keyboard slide status exposed by `GetGamingMiscSetting(3)`.
+    /// The low byte is a status and the high byte is 1 when the keyboard is
+    /// slid down (the "HyperDrift"/Turbo position).
+    pub fn get_slide_keyboard(&self) -> Result<bool> {
+        let v = self.get_misc(3)?;
+        Ok((v & 0xFF) == 0 && ((v >> 8) & 0xFF) == 1)
+    }
+
     pub fn set_fan_behavior(&self, value: u64) -> Result<Vec<u8>> {
         self.wmi.call_u64(method::SET_FAN_BEHAVIOR, value)
     }
@@ -224,10 +232,11 @@ impl AcerGaming {
             (FanKind::System, false) => (protocol::fan::SYS1_MANUAL, protocol::fan::SYS1),
         };
         self.set_fan_behavior(behavior)?;
-        if !auto {
-            let v = (speed_group as u64) | (((percent.min(100)) as u64) << 8);
-            self.set_fan_speed(v)?;
-        }
+        // Always write the speed register: in auto mode the EC otherwise keeps
+        // the last manual duty (e.g. Turbo's 100%) after the behavior switch.
+        let duty = if auto { 0 } else { percent.min(100) };
+        let v = (speed_group as u64) | ((duty as u64) << 8);
+        self.set_fan_speed(v)?;
         Ok(())
     }
 }

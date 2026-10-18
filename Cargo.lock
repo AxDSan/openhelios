@@ -1928,7 +1928,7 @@ dependencies = [
 
 [[package]]
 name = "predator-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "dirs",
@@ -1941,7 +1941,7 @@ dependencies = [
 
 [[package]]
 name = "predator-sense"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1953,7 +1953,7 @@ dependencies = [
 
 [[package]]
 name = "predator-sense-gui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",

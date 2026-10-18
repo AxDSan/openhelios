@@ -9,7 +9,7 @@ use predator_core::protocol::{Rgb, EFFECTS};
 use predator_core::safety;
 
 use crate::keyboard::{self, metric, sparkline};
-use crate::App;
+use crate::{App, CYAN, TEXT};
 
 fn opt(v: Option<f32>, suffix: &str, digits: usize) -> String {
     v.map(|x| format!("{x:.digits$}{suffix}"))
@@ -55,65 +55,83 @@ fn color_editor(ui: &mut egui::Ui, color: &mut Rgb) {
 
 impl App {
     pub(crate) fn dashboard(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Dashboard");
+        ui.heading("Home");
         ui.label(
             RichText::new("Live sensors from hwmon, cpufreq, RAPL and nvidia-smi.")
                 .color(Color32::from_gray(150)),
         );
-        ui.add_space(8.0);
+        ui.add_space(6.0);
+
+        let cpu_temp = self.sample.cpu_temp.unwrap_or(0.0);
+        let gpu_temp = self.sample.gpu_temp.unwrap_or(0.0);
+        let cpu_clock = self.sample.cpu_freq_mhz.unwrap_or(0.0);
+        let gpu_clock = self.sample.gpu_clock_mhz.unwrap_or(0.0);
+        let gpu_load = self.sample.gpu_load.unwrap_or(0.0);
+        ui.columns(2, |cols| {
+            keyboard::gauge(
+                &mut cols[0],
+                "CPU TEMPERATURE",
+                cpu_temp,
+                100.0,
+                "°C",
+                &format!("{cpu_clock:.0} MHz"),
+                CYAN,
+            );
+            keyboard::gauge(
+                &mut cols[1],
+                "GPU TEMPERATURE",
+                gpu_temp,
+                100.0,
+                "°C",
+                &format!("{gpu_clock:.0} MHz · {gpu_load:.0}%"),
+                Color32::from_rgb(90, 200, 255),
+            );
+        });
+        ui.add_space(6.0);
 
         let s = &self.sample;
-        ui.horizontal_wrapped(|ui| {
-            metric(
-                ui,
+        let metrics: [(&str, String, Color32); 10] = [
+            (
                 "CPU temperature",
                 opt(s.cpu_temp, " °C", 1),
                 Color32::from_rgb(255, 130, 110),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "GPU temperature",
                 opt(s.gpu_temp, " °C", 1),
                 Color32::from_rgb(110, 200, 255),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "CPU load",
                 opt(s.cpu_load, " %", 1),
                 Color32::from_rgb(255, 210, 100),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "GPU load",
                 opt(s.gpu_load, " %", 1),
                 Color32::from_rgb(150, 235, 150),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "CPU clock",
                 opt(s.cpu_freq_mhz, " MHz", 0),
                 Color32::from_rgb(220, 220, 230),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "GPU clock",
                 opt(s.gpu_clock_mhz, " MHz", 0),
                 Color32::from_rgb(220, 220, 230),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "CPU package",
                 opt(s.cpu_power_w, " W", 1),
                 Color32::from_rgb(255, 180, 120),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "GPU power",
                 opt(s.gpu_power_w, " W", 1),
                 Color32::from_rgb(255, 180, 120),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "Memory",
                 format!(
                     "{} / {} GB",
@@ -121,14 +139,24 @@ impl App {
                     opt(s.mem_total_gb, "", 1)
                 ),
                 Color32::from_rgb(200, 200, 210),
-            );
-            metric(
-                ui,
+            ),
+            (
                 "Battery",
                 opt(s.battery_percent, " %", 0),
                 Color32::from_rgb(180, 220, 255),
-            );
-        });
+            ),
+        ];
+        egui::Grid::new("home_metrics")
+            .num_columns(4)
+            .spacing([10.0, 8.0])
+            .show(ui, |ui| {
+                for (i, (label, value, color)) in metrics.iter().enumerate() {
+                    metric(ui, label, value.clone(), *color);
+                    if (i + 1) % 4 == 0 {
+                        ui.end_row();
+                    }
+                }
+            });
 
         ui.add_space(10.0);
         ui.label(
@@ -230,7 +258,7 @@ impl App {
         }
 
         ui.add_space(6.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Mode");
             ui.radio_value(&mut self.state.mode, LightingMode::Static, "Static per-key");
             ui.radio_value(&mut self.state.mode, LightingMode::Effect, "Effect");
@@ -238,12 +266,12 @@ impl App {
         });
 
         ui.add_space(4.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Brightness");
             ui.add(Slider::new(&mut self.state.brightness, 0..=100).suffix("%"));
         });
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Colour");
             color_editor(ui, &mut self.state.color);
             // keep the base colour if the per-key map is not explicitly edited
@@ -253,7 +281,7 @@ impl App {
         });
 
         if self.state.mode == LightingMode::Effect {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label("Effect");
                 let current = predator_core::protocol::effect_name(self.state.effect);
                 ComboBox::from_id_salt("effect")
@@ -321,7 +349,7 @@ impl App {
             self.selected.insert(tag);
         }
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui
                 .button(RichText::new("Apply keyboard").strong())
                 .clicked()
@@ -353,7 +381,7 @@ impl App {
 
         ui.separator();
         ui.heading("Chassis lights");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.checkbox(&mut self.profile.ring.enabled, "Touchpad ring");
             ui.add(Slider::new(&mut self.profile.ring.brightness, 0..=100).text("brightness"));
             ui.label("colour");
@@ -368,7 +396,7 @@ impl App {
                 self.report(r);
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.checkbox(&mut self.profile.heatpipe, "Heat-pipe light");
             if ui.button("Apply heat-pipe").clicked() {
                 let on = self.profile.heatpipe;
@@ -386,20 +414,24 @@ impl App {
     fn fan_editor(&mut self, ui: &mut egui::Ui, kind: FanKind) {
         let mut s = self.profile.fan.get(kind).clone();
         let mut apply = false;
-        egui::Frame::group(ui.style()).show(ui, |ui| {
-            ui.set_min_width(240.0);
-            ui.horizontal(|ui| {
-                ui.label(RichText::new(kind.label()).strong());
-                ui.checkbox(&mut s.auto, "Automatic");
+        egui::Frame::group(ui.style())
+            .inner_margin(egui::Margin::same(10))
+            .show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(kind.label()).strong());
+                    ui.checkbox(&mut s.auto, "Automatic");
+                });
+                ui.add_enabled(
+                    !s.auto,
+                    Slider::new(&mut s.percent, 20..=100).text("duty %"),
+                );
+                let button =
+                    egui::Button::new("Apply").min_size(egui::vec2(ui.available_width(), 24.0));
+                if ui.add(button).clicked() {
+                    apply = true;
+                }
             });
-            ui.add_enabled(
-                !s.auto,
-                Slider::new(&mut s.percent, 20..=100).text("duty %"),
-            );
-            if ui.button("Apply").clicked() {
-                apply = true;
-            }
-        });
         self.profile.fan.get_mut(kind).clone_from(&s);
         if apply {
             let r = self.controller.apply_fan(kind, s.auto, s.percent);
@@ -414,7 +446,7 @@ impl App {
                 .color(Color32::from_gray(150)),
         );
         ui.add_space(6.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.button("All automatic").clicked() {
                 let mut err = None;
                 for kind in [FanKind::Cpu, FanKind::Gpu] {
@@ -450,7 +482,7 @@ impl App {
                 }
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.button("Quiet (35%)").clicked() {
                 self.snapshot_now();
                 for kind in [FanKind::Cpu, FanKind::Gpu] {
@@ -472,15 +504,15 @@ impl App {
                 }
             }
         });
-        ui.horizontal_wrapped(|ui| {
-            self.fan_editor(ui, FanKind::Cpu);
-            self.fan_editor(ui, FanKind::Gpu);
+        ui.columns(2, |cols| {
+            self.fan_editor(&mut cols[0], FanKind::Cpu);
+            self.fan_editor(&mut cols[1], FanKind::Gpu);
         });
         ui.collapsing("Secondary fan groups (models with four fans)", |ui| {
-            ui.horizontal_wrapped(|ui| {
-                self.fan_editor(ui, FanKind::Cpu2);
-                self.fan_editor(ui, FanKind::Gpu2);
-                self.fan_editor(ui, FanKind::System);
+            ui.columns(3, |cols| {
+                self.fan_editor(&mut cols[0], FanKind::Cpu2);
+                self.fan_editor(&mut cols[1], FanKind::Gpu2);
+                self.fan_editor(&mut cols[2], FanKind::System);
             });
         });
         if !self.fan_status.is_empty() {
@@ -491,10 +523,12 @@ impl App {
     }
 
     pub(crate) fn overclock_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Overclock");
-        ui.colored_label(
-            Color32::from_rgb(255, 180, 90),
-            "EC overclock writes change firmware power/clock limits. Use AC power, keep a recovery snapshot, and never raise levels blindly.",
+        ui.heading("Overclocking");
+        ui.label(
+            RichText::new(
+                "EC overclock writes change firmware limits. Use AC power and a recovery snapshot; never raise levels blindly.",
+            )
+            .color(Color32::from_rgb(255, 180, 90)),
         );
         ui.add_space(4.0);
         ui.checkbox(
@@ -502,16 +536,122 @@ impl App {
             "Enable EC overclock writes (AC + at least 40% battery required)",
         );
         self.controller.policy.allow_oc = self.allow_oc;
+        ui.add_space(6.0);
+        ui.vertical_centered(|ui| {
+            ui.label(
+                RichText::new("GPU")
+                    .size(13.0)
+                    .color(Color32::from_gray(185)),
+            );
+        });
+        let selected_mode = self.gpu_mode();
+        let max_clock = self
+            .nvidia_power
+            .as_ref()
+            .and_then(|n| n.max_clock_mhz)
+            .unwrap_or(2100.0);
+        ui.horizontal_wrapped(|ui| {
+            let total = 3.0 * 118.0 + 2.0 * 10.0;
+            ui.add_space(((ui.available_width() - total) / 2.0).max(0.0));
+            for (idx, name, spec) in [
+                (0usize, "Normal", "stock limits"),
+                (1, "Fast", "100 W / 1.5 GHz"),
+                (2, "Extreme", "max power / clock"),
+            ] {
+                ui.vertical(|ui| {
+                    let is = selected_mode == idx;
+                    let fill = if is {
+                        Color32::from_rgb(0, 74, 86)
+                    } else {
+                        Color32::from_rgb(13, 19, 25)
+                    };
+                    let stroke = egui::Stroke::new(
+                        if is { 2.0 } else { 1.0 },
+                        if is {
+                            CYAN
+                        } else {
+                            Color32::from_rgb(26, 50, 60)
+                        },
+                    );
+                    let button =
+                        egui::Button::new(RichText::new(name).size(15.0).strong().color(if is {
+                            CYAN
+                        } else {
+                            TEXT
+                        }))
+                        .fill(fill)
+                        .stroke(stroke)
+                        .corner_radius(6.0)
+                        .min_size(egui::vec2(118.0, 46.0));
+                    if ui.add(button).clicked() {
+                        self.apply_gpu_mode(idx);
+                    }
+                    ui.label(RichText::new(spec).size(11.0).color(if is {
+                        CYAN
+                    } else {
+                        Color32::from_gray(150)
+                    }));
+                });
+                ui.add_space(10.0);
+            }
+        });
+        ui.add_space(4.0);
+        let clock = self.sample.gpu_clock_mhz.unwrap_or(0.0);
+        let load = self.sample.gpu_load.unwrap_or(0.0);
+        ui.vertical_centered(|ui| {
+            keyboard::gauge(
+                ui,
+                "GPU CORE CLOCK",
+                clock,
+                max_clock.max(1.0),
+                "MHz",
+                &format!("Loading {load:.0}%"),
+                Color32::from_rgb(90, 200, 255),
+            );
+        });
+        ui.add_space(4.0);
         ui.separator();
 
-        ui.label(RichText::new("Firmware levels").strong());
-        ui.horizontal(|ui| {
+        ui.label(RichText::new("Turbo (keyboard slide)").strong());
+        ui.horizontal_wrapped(|ui| {
+            let (slide, color) = match self.sample.slide_keyboard {
+                Some(true) => ("engaged", Color32::from_rgb(255, 130, 50)),
+                Some(false) => ("closed", Color32::from_gray(150)),
+                None => ("unknown", Color32::from_gray(110)),
+            };
+            ui.label(RichText::new(format!("Keyboard slide: {slide}")).color(color));
+            ui.checkbox(&mut self.auto_turbo, "Auto Turbo on slide");
+            if ui
+                .add_enabled(self.allow_oc, egui::Button::new("Apply Turbo now"))
+                .clicked()
+            {
+                self.engage_turbo();
+            }
+            if ui
+                .add_enabled(self.turbo_active, egui::Button::new("Restore Turbo"))
+                .clicked()
+            {
+                self.release_turbo();
+            }
+        });
+        ui.label(
+            RichText::new("Turbo: fans 100%, heat-pipe/fan/ring lights on, orange keyboard wave, performance CPU/GPU limits.")
+                .small()
+                .color(Color32::from_gray(150)),
+        );
+        ui.separator();
+
+        ui.label(
+            RichText::new("EC legacy levels (accepted by firmware; the Windows XTU profile path is not available)")
+                .strong(),
+        );
+        ui.horizontal_wrapped(|ui| {
             ui.label("CPU");
             for (level, name) in [(0u8, "Normal"), (1, "Fast"), (2, "Turbo")] {
                 ui.radio_value(&mut self.profile.oc.cpu_level, level, name);
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("GPU");
             for (level, name) in [(0u8, "Normal"), (1, "Fast"), (2, "Turbo")] {
                 ui.radio_value(&mut self.profile.oc.gpu_level, level, name);
@@ -594,7 +734,7 @@ impl App {
             .monospace()
             .small(),
         );
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Governor");
             ComboBox::from_id_salt("governor")
                 .selected_text(&self.linux_governor)
@@ -617,7 +757,7 @@ impl App {
             "Disable turbo (intel_pstate no_turbo)",
         );
         let mut max_khz = self.linux_max_freq_khz;
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Max frequency");
             ui.add(
                 DragValue::new(&mut max_khz)
@@ -628,38 +768,44 @@ impl App {
         });
         self.linux_max_freq_khz = max_khz;
         if ui.button("Apply Linux CPU settings").clicked() {
-            self.controller.policy.require_writes().ok();
-            let mut err: Option<String> = None;
-            if self.controller.policy.allow_writes {
-                if let Err(e) = oc::set_governor(&self.linux_governor) {
-                    err = Some(format!("{e}"));
+            if !self.controller.policy.allow_writes {
+                self.status = "writes are disabled".to_string();
+            } else {
+                self.snapshot_now();
+                let mut err: Option<String> = None;
+                let governor = self.linux_governor.clone();
+                if let Err(e) = self.run_privileged(&["oc", "linux", "governor", &governor]) {
+                    err = Some(e);
                 }
                 if err.is_none() {
-                    if let Err(e) = oc::set_epp(&self.linux_epp) {
-                        err = Some(format!("{e}"));
+                    let epp = self.linux_epp.clone();
+                    if let Err(e) = self.run_privileged(&["oc", "linux", "epp", &epp]) {
+                        err = Some(e);
                     }
                 }
                 if err.is_none() {
-                    if let Err(e) = oc::set_no_turbo(self.linux_no_turbo) {
-                        err = Some(format!("{e}"));
+                    let no_turbo = if self.linux_no_turbo { "on" } else { "off" };
+                    if let Err(e) = self.run_privileged(&["oc", "linux", "no-turbo", no_turbo]) {
+                        err = Some(e);
                     }
                 }
                 if err.is_none() && self.linux_max_freq_khz > 0 {
-                    if let Err(e) = oc::set_max_freq_khz(self.linux_max_freq_khz) {
-                        err = Some(format!("{e}"));
+                    let khz = self.linux_max_freq_khz.to_string();
+                    if let Err(e) = self.run_privileged(&["oc", "linux", "max-freq", &khz]) {
+                        err = Some(e);
                     }
                 }
-            }
-            match err {
-                Some(e) => self.status = format!("error: {e}"),
-                None => self.status = "Linux CPU settings applied".to_string(),
+                match err {
+                    Some(e) => self.status = format!("error: {e}"),
+                    None => self.status = "Linux CPU settings applied (administrator)".to_string(),
+                }
             }
         }
     }
 
     pub(crate) fn profiles_tab(&mut self, ui: &mut egui::Ui) {
         ui.heading("Profiles");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Name");
             ui.text_edit_singleline(&mut self.profile_name);
             if ui.button("Save current").clicked() {
@@ -677,52 +823,62 @@ impl App {
         if names.is_empty() {
             ui.label(RichText::new("No profiles yet.").color(Color32::from_gray(160)));
         }
-        egui::Grid::new("profiles")
-            .num_columns(4)
-            .striped(true)
+        egui::ScrollArea::horizontal()
+            .auto_shrink([false, false])
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
             .show(ui, |ui| {
-                for name in names {
-                    ui.label(&name);
-                    if ui.button("Load").clicked() {
-                        match self.store.load(&name) {
-                            Ok(p) => {
-                                self.profile = p;
-                                self.state = self.profile.lighting.state();
-                                self.paint = self.state.color.to_array();
-                                self.profile_name = name.clone();
-                                self.sync_power_fields();
-                                self.status = format!("loaded {name}");
+                egui::Grid::new("profiles")
+                    .num_columns(4)
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.label(RichText::new("Profile").strong());
+                        ui.label(RichText::new("Load").strong());
+                        ui.label(RichText::new("Apply").strong());
+                        ui.label(RichText::new("Delete").strong());
+                        ui.end_row();
+                        for name in names {
+                            ui.label(&name);
+                            if ui.button("Load").clicked() {
+                                match self.store.load(&name) {
+                                    Ok(p) => {
+                                        self.profile = p;
+                                        self.state = self.profile.lighting.state();
+                                        self.paint = self.state.color.to_array();
+                                        self.profile_name = name.clone();
+                                        self.sync_profile_fields();
+                                        self.status = format!("loaded {name}");
+                                    }
+                                    Err(e) => self.status = format!("error: {e}"),
+                                }
                             }
-                            Err(e) => self.status = format!("error: {e}"),
-                        }
-                    }
-                    if ui.button("Apply").clicked() {
-                        match self.store.load(&name) {
-                            Ok(p) => {
-                                self.profile = p.clone();
-                                self.state = self.profile.lighting.state();
-                                self.profile_name = name.clone();
-                                self.sync_power_fields();
-                                let r = self.controller.apply_profile(&p);
-                                self.report(r);
+                            if ui.button("Apply").clicked() {
+                                match self.store.load(&name) {
+                                    Ok(p) => {
+                                        self.profile = p.clone();
+                                        self.state = self.profile.lighting.state();
+                                        self.profile_name = name.clone();
+                                        self.sync_profile_fields();
+                                        let r = self.controller.apply_profile(&p);
+                                        self.report(r);
+                                    }
+                                    Err(e) => self.status = format!("error: {e}"),
+                                }
                             }
-                            Err(e) => self.status = format!("error: {e}"),
+                            if ui.button("Delete").clicked() {
+                                match self.store.delete(&name) {
+                                    Ok(()) => self.status = format!("deleted {name}"),
+                                    Err(e) => self.status = format!("error: {e}"),
+                                }
+                            }
+                            ui.end_row();
                         }
-                    }
-                    if ui.button("Delete").clicked() {
-                        match self.store.delete(&name) {
-                            Ok(()) => self.status = format!("deleted {name}"),
-                            Err(e) => self.status = format!("error: {e}"),
-                        }
-                    }
-                    ui.end_row();
-                }
+                    });
             });
 
         ui.add_space(8.0);
         ui.separator();
         ui.heading("Backup / restore profiles");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Export");
             ui.text_edit_singleline(&mut self.export_path);
             if ui.button("Export").clicked() {
@@ -732,7 +888,7 @@ impl App {
                 }
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("Import");
             ui.text_edit_singleline(&mut self.import_path);
             if ui.button("Import").clicked() {
@@ -748,7 +904,14 @@ impl App {
             let p = self.current_profile();
             match toml::to_string_pretty(&p) {
                 Ok(text) => {
-                    ui.label(RichText::new(text).monospace().small());
+                    egui::ScrollArea::both()
+                        .max_height(320.0)
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::Label::new(RichText::new(text).monospace().small()).extend(),
+                            );
+                        });
                 }
                 Err(e) => {
                     ui.label(format!("error: {e}"));
@@ -799,7 +962,7 @@ impl App {
 
         ui.separator();
         ui.heading("Raw WMI");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("method");
             ui.add(DragValue::new(&mut self.raw_method).range(0..=255));
             ui.label("payload");
@@ -823,7 +986,7 @@ impl App {
 
         ui.separator();
         ui.heading("HID feature command");
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("opcode");
             ui.add(DragValue::new(&mut self.hid_opcode).range(0..=255));
             if ui.button("Get").clicked() {
@@ -846,11 +1009,13 @@ impl App {
 
         ui.separator();
         ui.heading("Log");
-        egui::ScrollArea::vertical()
+        egui::ScrollArea::both()
             .max_height(220.0)
+            .auto_shrink([false, false])
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded)
             .show(ui, |ui| {
                 for line in self.controller.log.iter().rev() {
-                    ui.label(RichText::new(line).monospace().small());
+                    ui.add(egui::Label::new(RichText::new(line).monospace().small()).extend());
                 }
             });
     }
@@ -863,7 +1028,7 @@ impl App {
         );
         ui.add_space(8.0);
 
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if ui.button(RichText::new("Snapshot now").strong()).clicked() {
                 let p = self.current_profile();
                 match self.controller.save_state(&p) {
@@ -951,6 +1116,7 @@ impl App {
 
         ui.add_space(6.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.label(RichText::new("Actuation point").strong());
             ui.add_enabled(
                 enabled,
@@ -972,8 +1138,9 @@ impl App {
 
         ui.add_space(4.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.label(RichText::new("Switch / linear / joystick").strong());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.label("switch");
                 ComboBox::from_id_salt("mag_switch")
                     .selected_text(if self.mag_switch == 0 {
@@ -1018,6 +1185,7 @@ impl App {
 
         ui.add_space(4.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.label(RichText::new("Analog curve").strong());
             ui.add_enabled(enabled, Slider::new(&mut self.mag_analog, 0..=255));
             if ui
@@ -1036,8 +1204,9 @@ impl App {
 
         ui.add_space(4.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.label(RichText::new("MagForce replace mode").strong());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 ui.checkbox(&mut self.mag_replace, "replace mode");
                 ui.checkbox(&mut self.mag_replace_30s, "30-second backlight");
             });
@@ -1059,8 +1228,9 @@ impl App {
 
         ui.add_space(4.0);
         egui::Frame::group(ui.style()).show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.label(RichText::new("Game keys (W / A / S / D)").strong());
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 for (i, usage) in ["W", "A", "S", "D"].iter().enumerate() {
                     ui.label(*usage);
                     ui.add(DragValue::new(&mut self.mag_gamekeys[i]).range(0..=24));
@@ -1174,16 +1344,17 @@ impl App {
             .monospace()
             .small(),
         );
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("PL1");
             ui.add(DragValue::new(&mut self.pl1_w).range(5..=200).suffix(" W"));
             if ui
                 .add_enabled(enabled, egui::Button::new("Set PL1"))
                 .clicked()
             {
+                self.snapshot_now();
                 self.profile.power.pl1_w = Some(self.pl1_w as f32);
-                let p = oc::PowerLimits::read();
-                match p.set_pl1(self.pl1_w as f32, None) {
+                let watts = self.pl1_w.to_string();
+                match self.run_privileged(&["--allow-oc", "oc", "power", "pl1", &watts]) {
                     Ok(()) => {
                         self.status = format!("PL1 set to {} W", self.pl1_w);
                         self.power_limits = oc::PowerLimits::read();
@@ -1197,9 +1368,10 @@ impl App {
                 .add_enabled(enabled, egui::Button::new("Set PL2"))
                 .clicked()
             {
+                self.snapshot_now();
                 self.profile.power.pl2_w = Some(self.pl2_w as f32);
-                let p = oc::PowerLimits::read();
-                match p.set_pl2(self.pl2_w as f32, None) {
+                let watts = self.pl2_w.to_string();
+                match self.run_privileged(&["--allow-oc", "oc", "power", "pl2", &watts]) {
                     Ok(()) => {
                         self.status = format!("PL2 set to {} W", self.pl2_w);
                         self.power_limits = oc::PowerLimits::read();
@@ -1220,14 +1392,20 @@ impl App {
         ui.separator();
         ui.heading("GPU power and clocks (NVIDIA)");
         if let Some(n) = &self.nvidia_power {
+            let fmt = |v: Option<f32>, unit: &str| match v {
+                Some(v) => format!("{v:.0}{unit}"),
+                None => "—".to_string(),
+            };
+            let range = match (n.min_power_w, n.max_power_w) {
+                (Some(lo), Some(hi)) => format!("range {lo:.0}–{hi:.0} W"),
+                _ => "range unknown".to_string(),
+            };
             ui.label(
                 RichText::new(format!(
-                    "power limit {:?} W (range {:?}..{:?})   max clock {:?} MHz   current {:?} MHz",
-                    n.power_limit_w,
-                    n.min_power_w,
-                    n.max_power_w,
-                    n.max_clock_mhz,
-                    n.current_clock_mhz
+                    "power limit {} ({range})   max clock {}   current {}",
+                    fmt(n.power_limit_w, " W"),
+                    fmt(n.max_clock_mhz, " MHz"),
+                    fmt(n.current_clock_mhz, " MHz"),
                 ))
                 .monospace()
                 .small(),
@@ -1235,7 +1413,7 @@ impl App {
         } else {
             ui.label(RichText::new("nvidia-smi unavailable").color(Color32::from_gray(160)));
         }
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("power limit");
             ui.add(
                 DragValue::new(&mut self.gpu_power_w)
@@ -1246,16 +1424,19 @@ impl App {
                 .add_enabled(enabled, egui::Button::new("Set GPU power"))
                 .clicked()
             {
+                self.snapshot_now();
                 self.profile.power.gpu_power_w = Some(self.gpu_power_w as f32);
-                match oc::set_nvidia_power_limit(self.gpu_power_w as f32) {
+                let watts = self.gpu_power_w.to_string();
+                match self.run_privileged(&["--allow-oc", "oc", "nvidia", "power", &watts]) {
                     Ok(()) => {
-                        self.status = format!("GPU power limit set to {} W", self.gpu_power_w)
+                        self.status = format!("GPU power limit set to {} W", self.gpu_power_w);
+                        self.nvidia_power = oc::nvidia_status();
                     }
                     Err(e) => self.status = format!("error: {e}"),
                 }
             }
         });
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label("lock clocks");
             ui.add(
                 DragValue::new(&mut self.gpu_lock_min)
@@ -1272,7 +1453,9 @@ impl App {
                 self.snapshot_now();
                 self.profile.power.gpu_lock_min_mhz = Some(self.gpu_lock_min);
                 self.profile.power.gpu_lock_max_mhz = Some(self.gpu_lock_max);
-                match oc::set_gpu_locked_clocks(self.gpu_lock_min, self.gpu_lock_max) {
+                let min = self.gpu_lock_min.to_string();
+                let max = self.gpu_lock_max.to_string();
+                match self.run_privileged(&["--allow-oc", "oc", "nvidia", "lock", &min, &max]) {
                     Ok(()) => {
                         self.status = "GPU clocks locked".into();
                         self.nvidia_power = oc::nvidia_status();
@@ -1284,9 +1467,10 @@ impl App {
                 .add_enabled(enabled, egui::Button::new("Reset clocks"))
                 .clicked()
             {
+                self.snapshot_now();
                 self.profile.power.gpu_lock_min_mhz = None;
                 self.profile.power.gpu_lock_max_mhz = None;
-                match oc::reset_gpu_clocks() {
+                match self.run_privileged(&["--allow-oc", "oc", "nvidia", "reset"]) {
                     Ok(()) => {
                         self.status = "GPU clocks reset".into();
                         self.nvidia_power = oc::nvidia_status();
@@ -1300,5 +1484,68 @@ impl App {
                 .small()
                 .color(Color32::from_gray(150)),
         );
+    }
+    fn gpu_mode(&self) -> usize {
+        match self.profile.power.gpu_lock_max_mhz {
+            Some(max) if max >= 2000.0 => 2,
+            Some(max) if max >= 1000.0 => 1,
+            _ => 0,
+        }
+    }
+
+    fn apply_gpu_mode(&mut self, mode: usize) {
+        if !self.allow_oc {
+            self.status = "enable overclocking first".into();
+            return;
+        }
+        self.snapshot_now();
+        let max_w = self
+            .nvidia_power
+            .as_ref()
+            .and_then(|n| n.max_power_w)
+            .unwrap_or(115.0);
+        let max_clock = self
+            .nvidia_power
+            .as_ref()
+            .and_then(|n| n.max_clock_mhz)
+            .unwrap_or(2100.0);
+        let (watts, lo, hi) = match mode {
+            0 => (max_w, None, None),
+            1 => (
+                100.0_f32.min(max_w),
+                Some(300.0_f32),
+                Some(1500.0_f32.min(max_clock)),
+            ),
+            _ => (max_w, Some(300.0_f32), Some(max_clock)),
+        };
+        let ws = format!("{watts:.0}");
+        let mut result = self.run_privileged(&["--allow-oc", "oc", "nvidia", "power", &ws]);
+        if result.is_ok() {
+            result = match (lo, hi) {
+                (Some(lo), Some(hi)) => {
+                    let los = format!("{lo:.0}");
+                    let his = format!("{hi:.0}");
+                    self.run_privileged(&["--allow-oc", "oc", "nvidia", "lock", &los, &his])
+                }
+                _ => self.run_privileged(&["--allow-oc", "oc", "nvidia", "reset"]),
+            };
+        }
+        match result {
+            Ok(_) => {
+                self.profile.power.gpu_power_w = Some(watts);
+                self.profile.power.gpu_lock_min_mhz = lo;
+                self.profile.power.gpu_lock_max_mhz = hi;
+                self.gpu_power_w = watts as u32;
+                if let Some(hi) = hi {
+                    self.gpu_lock_max = hi;
+                }
+                self.nvidia_power = oc::nvidia_status();
+                self.status = format!(
+                    "GPU mode {}",
+                    ["Normal", "Fast", "Extreme"].get(mode).unwrap_or(&"?")
+                );
+            }
+            Err(e) => self.status = format!("GPU mode failed: {e}"),
+        }
     }
 }
