@@ -1,0 +1,97 @@
+name: Bug report
+description: Report a reproducible software or hardware-control problem
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem.
+
+        **Do not report security issues here.** See `SECURITY.md`.
+        Remove serial numbers, MAC addresses and other personal data from logs.
+
+  - type: input
+    id: model
+    attributes:
+      label: Laptop model and board
+      description: From /sys/class/dmi/id/product_name and board_name.
+      placeholder: Predator PH717-71 / Levante_CFS
+    validations:
+      required: true
+
+  - type: input
+    id: bios
+    attributes:
+      label: BIOS version
+      placeholder: V1.05
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: Distribution, kernel, desktop
+      placeholder: Fedora 43, kernel 7.0.12, KDE Wayland
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: PredatorSense Linux version
+      placeholder: 0.1.0 (commit)
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: predator-sense doctor
+      description: Paste the complete output (redact personal data).
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run ...
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: CLI output, GUI status, dmesg lines, snapshot path. Remove personal data.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I am not reporting a security vulnerability here.
+          required: true
+        - label: I have removed personal data from the logs.
+          required: true

@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest a hardware-control or usability improvement
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what is missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware / model
+      placeholder: Predator PH717-71 / Levante_CFS
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This is a hardware-control or usability feature, not a request to bundle Acer firmware or decompiled code.
+          required: true
+        - label: I searched existing issues and docs/PARITY.md.
+          required: true

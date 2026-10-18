@@ -1,0 +1,7 @@
+# Acer Predator PH717 vendor HID keyboard (0d62:9a1b).
+# A dedicated group is used instead of the broad "input" group; TAG+="uaccess"
+# grants the active seat user on desktops with systemd-logind uaccess support.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d62", ATTRS{idProduct}=="9a1b", MODE="0660", GROUP="predator-sense", TAG+="uaccess"
+
+# ACPI-WMI gaming-function bridge created by acer_gaming_probe.ko.
+KERNEL=="acer_gaming_wmi", MODE="0660", GROUP="predator-sense"

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=PredatorSense Linux
+GenericName=Lighting, fan and overclock control
+Comment=Unofficial Linux reimplementation of PredatorSense for the Acer Predator PH717
+Exec=predator-sense-gui
+Icon=input-keyboard
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=acer;predator;helios;rgb;keyboard;lighting;backlight;fan;overclock;
+StartupNotify=true

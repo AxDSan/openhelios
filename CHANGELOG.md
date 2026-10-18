@@ -1,0 +1,57 @@
+# Changelog
+
+All notable changes to this project are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning: [Semantic Versioning](https://semver.org/).
+
+## [0.1.0] — 2026-10-18
+
+Initial public release.
+
+### Added
+
+- Rust workspace: `predator-core`, `predator-sense` CLI, `predator-sense-gui`
+  (egui).
+- Per-key RGB over the vendor HID channel (`0d62:9a1b`, `0xFF01`): static
+  colours, 128-slot colour buffer, click/drag editor, WASD/arrow/F-row/number
+  presets.
+- Keyboard effects, brightness, and live getter readback.
+- MagForce: actuation point, switch/linear/joystick mode, analog curve, replace
+  mode, 30-second backlight and game-key mapping.
+- WMI chassis lights: touchpad ring and heat-pipe on/off; brightness/colour
+  payloads for models that support them.
+- Fan control: automatic, quiet/performance presets, manual duty for CPU/GPU
+  groups; EC fan RPM readback.
+- Sensors: EC CPU/system/GPU temperatures, fan RPM, CPU/GPU clocks, CPU load and
+  package power, RAM, battery/AC, NVIDIA telemetry via `nvidia-smi`.
+- Overclocking: firmware Normal/Fast/Turbo levels, Max-Q, GPU mode, POST sound;
+  RAPL PL1/PL2; NVIDIA power limit and locked clocks.
+- Profiles (TOML), snapshots (JSON), export/import, opt-in boot-time apply.
+- Safety: `panic`, `restore`, `--dry-run`, `--read-only`, `--allow-oc`,
+  pre-write snapshots, AC/battery preflight for EC OC.
+- Kernel module `acer_gaming_probe` with DKMS support.
+- udev rule using a dedicated `predator-sense` group plus seat `uaccess`.
+- Packaging, desktop entry, systemd unit, install/uninstall scripts.
+- Documentation: protocol, architecture, parity, recovery, security,
+  contribution and support guides.
+- CI: formatting, Clippy, tests and release build.
+
+### Verified
+
+- Acer Predator PH717-71 (Helios 700), board `Levante_CFS`, BIOS V1.05,
+  Fedora 43, kernel 7.0.12, NVIDIA RTX 2070 Mobile.
+- Per-key RGB red → cyan; ring on/off; heat-pipe on/off; fan CPU 60 % → auto;
+  EC CPU/GPU fan RPM and temperatures; MagForce actuation 46 → 45 → 46.
+
+### Known limitations
+
+- Acer's encrypted `.xtu` profiles are not replayed; RAPL/NVIDIA limits are the
+  Linux equivalent. Voltage offsets are not exposed by the Linux driver.
+- WMI methods 2/6/20 and ring colour are accepted but visibly inert on this
+  unit; they are implemented for other models.
+- Windows-only modules (App Center, GameSync, sound profiles, BIOS logo,
+  mobile pairing) are not replicated.
+- The pre-Rust Python toolkit is kept under `legacy/` for reference only.
+- The boot-time service applies the built-in `default` profile under root; users
+  who want a custom boot profile should install a system profile or run the
+  service as their own user.

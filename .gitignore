@@ -1,0 +1,15 @@
+/target/
+/work/
+/kmod/*.o
+/kmod/*.ko
+/kmod/*.mod
+/kmod/*.mod.c
+/kmod/.*.cmd
+/kmod/Module.symvers
+/kmod/modules.order
+/kmod/.module-common.o
+__pycache__/
+*.pyc
+codedb.snapshot
+.DS_Store
+*.swp

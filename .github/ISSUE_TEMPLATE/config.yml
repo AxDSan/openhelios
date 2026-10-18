@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/AxDSan/predator-sense-linux/security/advisories/new
+    about: Please report vulnerabilities privately.
+  - name: Documentation
+    url: https://github.com/AxDSan/predator-sense-linux/tree/main/docs
+    about: Protocol, architecture, parity and recovery.

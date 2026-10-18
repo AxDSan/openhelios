@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""acer-ring - on/off control for the Acer Predator PH717-71 touchpad ring.
+
+Standalone (stdlib only, no dependency on the acer-lighting repo) so it can be
+used from a systemd unit at boot.
+
+Protocol: WMI method 10 (SetGamingLEDGroupBehavior) via /dev/acer_gaming_wmi.
+Payload is a u64: group_id | (1 << on_bit).  Ring = group 0x80, on_bit 30.
+Recovered by decompiling PredatorSense 3.0.3196; see the acer-lighting repo,
+docs/05-predatorsense-decompile.md.
+"""
+import os
+import sys
+
+DEV = "/dev/acer_gaming_wmi"
+GROUPS = {"ring": (0x80, 30), "heatpipe": (0x40, 28), "cpufan": (0x20, 26)}
+M_LED_GROUP_BEHAVIOR = 10
+M_SET_KBBL = 20
+
+
+def call(method_id, payload=b""):
+    fd = os.open(DEV, os.O_RDWR)
+    try:
+        os.write(fd, bytes([method_id & 0xFF]) + bytes(payload))
+        try:
+            return os.read(fd, 1024)
+        except OSError:
+            return b""
+    finally:
+        os.close(fd)
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        sys.exit(f"usage: {sys.argv[0]} on|off [--group {'|'.join(GROUPS)}] "
+                 f"[--bright 0-100]")
+    state = args[0]
+    if state not in ("on", "off"):
+        sys.exit(f"expected 'on' or 'off', got {state!r}")
+    group = "ring"
+    bright = None
+    if "--group" in args:
+        group = args[args.index("--group") + 1]
+    if "--bright" in args:
+        bright = int(args[args.index("--bright") + 1])
+    if group not in GROUPS:
+        sys.exit(f"unknown group {group!r}; known: {', '.join(GROUPS)}")
+
+    if not os.path.exists(DEV):
+        sys.exit(f"{DEV} not found - is acer_gaming_probe loaded?")
+
+    gid, bit = GROUPS[group]
+    val = gid | ((1 << bit) if state == "on" else 0)
+    call(M_LED_GROUP_BEHAVIOR, val.to_bytes(8, "little"))
+    if bright is not None and state == "on":
+        call(M_SET_KBBL, ((max(0, min(100, bright)) & 0xFF) << 16).to_bytes(8, "little"))
+    print(f"{group} -> {state}" + (f" (brightness {bright})" if bright is not None and state == "on" else ""))
+
+
+if __name__ == "__main__":
+    main()

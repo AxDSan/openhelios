@@ -1,0 +1,18 @@
+[package]
+name = "predator-sense"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description.workspace = true
+
+[[bin]]
+name = "predator-sense"
+path = "src/main.rs"
+
+[dependencies]
+predator-core = { path = "../predator-core" }
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+chrono.workspace = true

@@ -1,0 +1,87 @@
+name: Hardware report
+description: Report what works on a new Acer Predator model
+title: "[hardware] "
+labels: ["hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to add a model to the compatibility notes. Do not include
+        firmware dumps, decompiled application code or other proprietary
+        material. Remove serial numbers and MAC addresses.
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      placeholder: Predator PH717-71
+    validations:
+      required: true
+
+  - type: input
+    id: board
+    attributes:
+      label: Board name
+      description: /sys/class/dmi/id/board_name
+      placeholder: Levante_CFS
+    validations:
+      required: true
+
+  - type: input
+    id: bios
+    attributes:
+      label: BIOS version
+      placeholder: V1.05
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: Distribution and kernel
+      placeholder: Fedora 43, kernel 7.0.12
+    validations:
+      required: true
+
+  - type: textarea
+    id: lsusb
+    attributes:
+      label: Vendor USB / HID devices
+      description: Output of `lsusb` and, if present, `lsusb -d 0d62:`.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: predator-sense doctor
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: monitor
+    attributes:
+      label: predator-sense monitor
+      render: shell
+
+  - type: textarea
+    id: works
+    attributes:
+      label: What works
+      description: Keyboard RGB, effects, brightness, MagForce, ring, heat-pipe, fans, sensors, OC, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: fails
+    attributes:
+      label: What is missing or inert
+      description: Include the exact command and whether the firmware accepted it.
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional notes
+      description: Safe observations only. No proprietary code or firmware.
