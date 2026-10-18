@@ -1,4 +1,4 @@
-# PredatorSense parity inventory
+# OpenHelios parity inventory
 
 Target: Acer Predator PH717-71 / Levante_CFS, BIOS V1.05.
 
@@ -8,10 +8,10 @@ the EC/WMI mailbox, the vendor HID channel, Intel XTU and NVAPI. This project
 replaces both layers with:
 
 ```
-predator-sense-gui / predator-sense
+openhelios-gui / openhelios
         │
-        ├── predator_core::hid   → /dev/hidraw*  (0d62:9a1b, 0xFF01)
-        └── predator_core::wmi   → /dev/acer_gaming_wmi → acer_gaming_probe.ko → WMBH
+        ├── openhelios_core::hid   → /dev/hidraw*  (0d62:9a1b, 0xFF01)
+        └── openhelios_core::wmi   → /dev/acer_gaming_wmi → acer_gaming_probe.ko → WMBH
 ```
 
 ## Hardware feature matrix
@@ -56,10 +56,13 @@ predator-sense-gui / predator-sense
 
 ## What "1:1" means here
 
-The **hardware control** surface is 1:1: every light, fan group, MagForce
-command and sensor index that PredatorSense uses on the PH717 has a direct
-Linux implementation, and the wire bytes were recovered from the shipped
-service. The UI is a functional equivalent, not a pixel copy.
+The **hardware control** surface is the project's target, not a certified 1:1
+replacement. Every light, fan group, MagForce command and sensor index that
+PredatorSense uses on the PH717 has a direct Linux code path, and the wire
+bytes were identified from functional interface evidence. Some firmware modes
+are accepted but inert or model-specific; see the status column and the
+Verified-versus-implemented note in the README. The UI is a functional
+equivalent, not a pixel copy. See [`PROVENANCE.md`](PROVENANCE.md).
 
 The **Windows-only application modules** (App Center, GameSync, sound profiles,
 BIOS logo, mobile pairing) do not have a direct hardware counterpart. They are

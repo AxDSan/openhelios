@@ -1,3 +1,4 @@
+//! WMI interface facts identified for interoperability; see docs/PROVENANCE.md.
 //! Userspace side of `acer_gaming_probe.ko`.
 //!
 //! `write()` is `[method_id] + payload`; `read()` returns the raw response.

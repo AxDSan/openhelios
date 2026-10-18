@@ -1,16 +1,19 @@
 # Contributing
 
-Thanks for helping make Predator hardware work on Linux.
+Thanks for helping make Predator Helios hardware work on Linux with OpenHelios.
 
 ## Ground rules
 
 - Be respectful. See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 - This is an **unofficial** project. Do not claim affiliation with Acer.
-- **Clean room:** do not contribute Acer firmware, decompiled application
-  source, leaked source, or other proprietary material. Protocol facts,
-  observations and original code are welcome. If a change depends on new
-  hardware behaviour, describe the observation and add it to
-  [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
+- **Provenance:** do not contribute Acer firmware, decompiled application
+  source, vendor binaries, extracted assets, `.xtu` files, or other proprietary
+  material. Protocol facts, observations and original code are welcome. If a
+  change depends on new hardware behaviour, describe the observation and add
+  it to [`docs/PROTOCOL.md`](docs/PROTOCOL.md). Disclose whether you inspected
+  a vendor binary; do not paste its code or assets. This project is not a
+  certified clean room and does not claim to be one. See
+  [`docs/PROVENANCE.md`](docs/PROVENANCE.md).
 - **License:** contributions are accepted under GPL-2.0-or-later. Sign off every
   commit with the Developer Certificate of Origin:
 
@@ -25,8 +28,8 @@ Thanks for helping make Predator hardware work on Linux.
 ## Development setup
 
 ```sh
-git clone https://github.com/AxDSan/predator-sense-linux.git
-cd predator-sense-linux
+git clone https://github.com/AxDSan/openhelios.git
+cd openhelios
 cargo build
 cargo test
 cargo fmt --all --check
@@ -37,7 +40,7 @@ Hardware access needs the kernel module and the udev rule:
 
 ```sh
 RELEASE=0 ./packaging/install.sh   # fast debug install
-predator-sense doctor
+openhelios doctor
 ```
 
 If you only need the module:
@@ -52,7 +55,7 @@ cd kmod && make && sudo insmod acer_gaming_probe.ko
   requires it, with a comment explaining the invariant.
 - Errors: return `Result`; no `unwrap()`/`expect()` on hardware paths. User
   errors should explain the next action.
-- Protocol code: keep wire values in `predator-core/src/protocol.rs`; do not
+- Protocol code: keep wire values in `openhelios-core/src/protocol.rs`; do not
   duplicate them in the GUI or CLI.
 - Safety: every hardware write must be gated by `SafetyPolicy`; direct HID
   writes in the GUI/CLI must snapshot first.
@@ -63,12 +66,12 @@ cd kmod && make && sudo insmod acer_gaming_probe.ko
 
 Before a PR that touches hardware:
 
-1. Run `predator-sense snapshot`.
+1. Run `openhelios snapshot`.
 2. Use AC power. Do not test overclock writes on battery.
 3. Prefer `--dry-run` first.
 4. Verify the physical result (lights/fans) and the getter/readback.
-5. End with `predator-sense panic` or `predator-sense profile apply default`.
-6. Attach the relevant `predator-sense doctor` and `predator-sense monitor`
+5. End with `openhelios panic` or `openhelios profile apply default`.
+6. Attach the relevant `openhelios doctor` and `openhelios monitor`
    output, with serial numbers/MAC addresses removed.
 
 Do not add speculative writes for an unknown method or payload. If a value is
@@ -94,7 +97,7 @@ description.
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] `cargo test --workspace`
 - [ ] Hardware tested (or explicitly marked not hardware-tested)
-- [ ] `predator-sense doctor` output attached for hardware changes
+- [ ] `openhelios doctor` output attached for hardware changes
 - [ ] `docs/PROTOCOL.md`/`PARITY.md` updated if the protocol changed
 - [ ] No proprietary code, firmware or decompiled source
 - [ ] Commits signed off (`git commit -s`)
@@ -105,7 +108,7 @@ Please include:
 
 - model and board name (`/sys/class/dmi/id/product_name`, `board_name`);
 - BIOS version and kernel;
-- `predator-sense doctor` output;
+- `openhelios doctor` output;
 - `lsusb` lines for the vendor HID device(s);
 - what works and what is inert (lighting groups, fans, OC, MagForce);
 - whether the model uses the `0d62:9a1b` HID family or another controller.

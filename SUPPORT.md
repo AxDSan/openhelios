@@ -8,8 +8,8 @@
 3. Run:
 
    ```sh
-   predator-sense doctor
-   predator-sense monitor
+   openhelios doctor
+   openhelios monitor
    ```
 
 4. For a lighting/fan problem, run the failing command with `--dry-run` first
@@ -21,7 +21,7 @@
 - distribution and kernel (`uname -r`);
 - desktop/session (X11 or Wayland) and whether the GUI or CLI was used;
 - exact command and its output;
-- `predator-sense doctor` output;
+- `openhelios doctor` output;
 - what changed physically (which light/fan, expected vs actual).
 
 Remove serial numbers, MAC addresses, IP addresses and any personal data.

@@ -1,5 +1,8 @@
 //! Physical `en-us` layout for the PH717. `tag` is the hardware LED index.
 //!
+//! Functional key-position facts; see docs/PROVENANCE.md. No vendor code or
+//! expressive assets are copied.
+//!
 //! The data was generated from the keyboard layout shipped with PredatorSense
 //! 3.00.3152 for the PH717-72 (same Levante platform and keyboard).
 

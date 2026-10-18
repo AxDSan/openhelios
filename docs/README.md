@@ -2,7 +2,8 @@
 
 | file | contents |
 |---|---|
-| [`PROTOCOL.md`](PROTOCOL.md) | Clean-room description of the WMI and HID protocols, payloads and health indices |
+| [`PROTOCOL.md`](PROTOCOL.md) | Functional-interface description of the WMI and HID protocols, payloads and health indices |
+| [`PROVENANCE.md`](PROVENANCE.md) | Research sources, access/copying facts, clean-room accuracy and repository checks |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Components, data flow, safety model, config/state, packaging |
 | [`PARITY.md`](PARITY.md) | PredatorSense module inventory and Linux status, including Windows-only modules |
 | [`RECOVERY.md`](RECOVERY.md) | Snapshots, panic, EC reset, BIOS defaults, module removal, OC recovery |
@@ -17,9 +18,9 @@
 
 ## Evidence
 
-The protocol facts were recovered from this machine's public ACPI tables, the
-USB HID descriptors, the observable behaviour of the shipped Windows
-application, and static analysis of its service. This repository does not
-include Acer firmware, decompiled application source, or other proprietary
-material. See the clean-room statement in [`PROTOCOL.md`](PROTOCOL.md) and
-[`../CONTRIBUTING.md`](../CONTRIBUTING.md).
+The protocol facts were identified from this machine's public ACPI tables, the
+USB HID descriptors, reversible probes, and static inspection of the locally
+installed, publicly distributed PredatorSense package for functional interface
+details. The repository does not include Acer firmware, decompiled application
+source, vendor binaries or vendor assets. It is not a certified clean room; see
+[`PROVENANCE.md`](PROVENANCE.md) and [`../CONTRIBUTING.md`](../CONTRIBUTING.md).

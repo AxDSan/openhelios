@@ -1,10 +1,10 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=PredatorSense Linux
+Name=OpenHelios
 GenericName=Lighting, fan and overclock control
-Comment=Unofficial Linux reimplementation of PredatorSense for the Acer Predator PH717
-Exec=predator-sense-gui
+Comment=Open Linux control for the Acer Predator PH717
+Exec=openhelios-gui
 Icon=input-keyboard
 Terminal=false
 Categories=Settings;HardwareSettings;

@@ -1,13 +1,15 @@
 # Protocol reference
 
-This is a clean-room description of the two hardware channels used by
-PredatorSense Linux on the Acer Predator PH717-71 (`Levante_CFS`). It records
+This is a functional-interface description of the two hardware channels used by
+OpenHelios on the Acer Predator PH717-71 (`Levante_CFS`). It records
 the **facts** needed to implement the controls; it does not contain Acer
 application code or firmware.
 
-The command values were recovered by observing the shipped Windows application
+The command values were identified by observing the public Windows application
 and its service on this hardware, then verified by reading the device back and
-by watching the physical lights.
+by watching the physical lights. See [`PROVENANCE.md`](PROVENANCE.md) for the
+sources, limits and the no-vendor-material statement. This is not a certified
+clean-room description.
 
 ## 1. ACPI-WMI gaming-function mailbox
 
@@ -258,11 +260,18 @@ tool gates writes with `--read-only`, `--dry-run` and `--allow-oc`, snapshots
 before hardware writes, and provides `panic`/`restore`. See
 [`RECOVERY.md`](RECOVERY.md).
 
-## 5. Evidence and clean-room statement
+## 5. Evidence and provenance
 
-The protocol was recovered from the public ACPI tables, the USB HID descriptors,
-the shipped Windows application's observable behaviour, and static analysis of
-its service. This repository contains only original code and factual protocol
-descriptions. It does not include or redistribute Acer firmware, decompiled
-application source, or other proprietary material. Contributions must follow
-the same rule.
+The protocol was identified from the public ACPI tables, the USB HID
+descriptors, reversible probing, and static inspection of the locally
+installed, publicly distributed PredatorSense package for functional interface
+details (method IDs, selector semantics and payload shapes). The implementation
+is original Rust; the repository contains only original code and factual
+protocol descriptions. It does not include or redistribute Acer firmware,
+decompiled application source, vendor binaries or vendor assets.
+
+This is **not** a certified clean-room statement. The same maintainer performed
+the analysis and the implementation. See
+[`PROVENANCE.md`](PROVENANCE.md) for the factual record, the access/copying
+questions, and the repository checks. Contributions must follow the same
+no-vendor-material rule.

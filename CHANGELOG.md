@@ -4,6 +4,34 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — 2026-10-18
+
+### Changed
+
+- Renamed the project, application and GitHub repository to **OpenHelios**
+  (`AxDSan/openhelios`). Crates are `openhelios-core`, `openhelios` and
+  `openhelios-gui`; binaries are `openhelios` and `openhelios-gui`.
+- Renamed the systemd unit, udev rule, desktop entry, device group and
+  config/state directories. The installer removes legacy names; profiles and
+  snapshots are migrated from `predator-sense` and `acer-lighting`.
+- README rewritten to separate: build-from-source instructions, the research
+  process, verified-versus-implemented behaviour, provenance/legal notes and
+  the limits of the clean-room claim.
+
+### Added
+
+- [`docs/PROVENANCE.md`](docs/PROVENANCE.md): sources examined, lawful-access
+  and access-control facts, the four copying questions, and the explicit
+  statement that this is **not** a certified clean room.
+
+### Fixed
+
+- The README no longer claims a clean-room process. It states that the same
+  maintainer performed the analysis and implementation and that no vendor code
+  or expressive assets were copied.
+- The “recovered from the shipped service” statements now have context and
+  link to the provenance record.
+
 ## [0.1.2] — 2026-10-18
 
 ### Fixed

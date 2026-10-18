@@ -1,15 +1,18 @@
 [package]
-name = "predator-core"
+name = "openhelios"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description.workspace = true
 
+[[bin]]
+name = "openhelios"
+path = "src/main.rs"
+
 [dependencies]
-thiserror.workspace = true
-serde.workspace = true
+openhelios-core = { path = "../openhelios-core" }
+anyhow.workspace = true
+clap.workspace = true
 serde_json.workspace = true
 toml.workspace = true
-libc.workspace = true
-dirs.workspace = true
 chrono.workspace = true

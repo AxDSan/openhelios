@@ -10,7 +10,7 @@ fn xdg(var: &str, fallback: &str) -> PathBuf {
 
 /// Home of the invoking user.
 ///
-/// `sudo predator-sense ...` otherwise writes profiles and snapshots under
+/// `sudo openhelios ...` otherwise writes profiles and snapshots under
 /// `/root`, which is why CLI changes appeared not to persist. Resolve
 /// `SUDO_USER` through `/etc/passwd` and fall back to `HOME`.
 fn home_dir() -> PathBuf {
@@ -44,11 +44,11 @@ fn passwd_home(user: &str) -> Option<PathBuf> {
 }
 
 pub fn config_dir() -> PathBuf {
-    xdg("XDG_CONFIG_HOME", ".config").join("predator-sense")
+    xdg("XDG_CONFIG_HOME", ".config").join("openhelios")
 }
 
 pub fn state_dir() -> PathBuf {
-    xdg("XDG_STATE_HOME", ".local/state").join("predator-sense")
+    xdg("XDG_STATE_HOME", ".local/state").join("openhelios")
 }
 
 pub fn profiles_dir() -> PathBuf {
@@ -73,16 +73,26 @@ pub fn ensure_dirs() -> std::io::Result<()> {
 /// `~/.local/state/acer-lighting`. Nothing is deleted; the old directories are
 /// left untouched so a failed migration can be inspected or retried.
 pub fn migrate_legacy() {
-    let old_cfg = xdg("XDG_CONFIG_HOME", ".config").join("acer-lighting");
     let new_cfg = config_dir();
-    if !new_cfg.exists() && old_cfg.exists() {
-        let _ = copy_tree(&old_cfg, &new_cfg);
+    if !new_cfg.exists() {
+        for old in ["predator-sense", "acer-lighting"] {
+            let old_cfg = xdg("XDG_CONFIG_HOME", ".config").join(old);
+            if old_cfg.exists() {
+                let _ = copy_tree(&old_cfg, &new_cfg);
+                break;
+            }
+        }
     }
 
-    let old_state = xdg("XDG_STATE_HOME", ".local/state").join("acer-lighting");
     let new_state = state_dir();
-    if !new_state.exists() && old_state.exists() {
-        let _ = copy_tree(&old_state, &new_state);
+    if !new_state.exists() {
+        for old in ["predator-sense", "acer-lighting"] {
+            let old_state = xdg("XDG_STATE_HOME", ".local/state").join(old);
+            if old_state.exists() {
+                let _ = copy_tree(&old_state, &new_state);
+                break;
+            }
+        }
     }
 }
 

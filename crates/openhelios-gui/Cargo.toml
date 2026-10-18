@@ -1,16 +1,16 @@
 [package]
-name = "predator-sense-gui"
+name = "openhelios-gui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 description.workspace = true
 
 [[bin]]
-name = "predator-sense-gui"
+name = "openhelios-gui"
 path = "src/main.rs"
 
 [dependencies]
-predator-core = { path = "../predator-core" }
+openhelios-core = { path = "../openhelios-core" }
 anyhow.workspace = true
 eframe.workspace = true
 egui.workspace = true

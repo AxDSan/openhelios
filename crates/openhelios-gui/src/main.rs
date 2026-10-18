@@ -10,14 +10,14 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 use egui::{Color32, RichText};
-use predator_core::lighting::LightingState;
-use predator_core::monitor::{HistoryPoint, Monitor, Sample};
-use predator_core::oc;
-use predator_core::profile::{
+use openhelios_core::lighting::LightingState;
+use openhelios_core::monitor::{HistoryPoint, Monitor, Sample};
+use openhelios_core::oc;
+use openhelios_core::profile::{
     LightingProfile, LinuxProfile, MagForceProfile, Profile, ProfileStore,
 };
-use predator_core::safety::{self, SafetyPolicy};
-use predator_core::Controller;
+use openhelios_core::safety::{self, SafetyPolicy};
+use openhelios_core::Controller;
 
 pub const CYAN: Color32 = Color32::from_rgb(0, 212, 232);
 pub const CYAN_DIM: Color32 = Color32::from_rgb(0, 125, 145);
@@ -25,7 +25,7 @@ pub const BG: Color32 = Color32::from_rgb(7, 11, 15);
 pub const PANEL: Color32 = Color32::from_rgb(13, 19, 25);
 pub const TEXT: Color32 = Color32::from_rgb(214, 232, 238);
 
-/// PredatorSense-inspired dark theme: near-black panels, cyan accents.
+/// OpenHelios dark cockpit theme: near-black panels, cyan accents.
 fn setup_theme(ctx: &egui::Context) {
     let mut visuals = egui::Visuals::dark();
     visuals.panel_fill = BG;
@@ -253,8 +253,8 @@ impl App {
             raw_response: String::new(),
             hid_opcode: 0x88,
             hid_response: String::new(),
-            export_path: "predator-sense-profiles.json".to_string(),
-            import_path: "predator-sense-profiles.json".to_string(),
+            export_path: "openhelios-profiles.json".to_string(),
+            import_path: "openhelios-profiles.json".to_string(),
             linux_governor,
             linux_epp,
             linux_no_turbo,
@@ -328,7 +328,7 @@ impl App {
         }
     }
 
-    pub fn report(&mut self, r: predator_core::Result<()>) {
+    pub fn report(&mut self, r: openhelios_core::Result<()>) {
         match r {
             Ok(()) => {
                 self.status = self
@@ -350,10 +350,10 @@ impl App {
     }
 
     pub(crate) fn run_privileged(&self, args: &[&str]) -> std::result::Result<(), String> {
-        let cli = if Path::new("/usr/local/bin/predator-sense").exists() {
-            "/usr/local/bin/predator-sense"
+        let cli = if Path::new("/usr/local/bin/openhelios").exists() {
+            "/usr/local/bin/openhelios"
         } else {
-            "predator-sense"
+            "openhelios"
         };
         let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
         match Command::new("sudo")
@@ -482,12 +482,7 @@ impl App {
                 let width = ui.available_width();
                 if width < 900.0 {
                     ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new("PredatorSense")
-                                .size(20.0)
-                                .strong()
-                                .color(TEXT),
-                        );
+                        ui.label(RichText::new("OpenHelios").size(20.0).strong().color(TEXT));
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.checkbox(&mut self.allow_oc, "OC");
                             ui.checkbox(&mut self.dry_run, "dry");
@@ -504,7 +499,9 @@ impl App {
                         cols[0].with_layout(
                             egui::Layout::left_to_right(egui::Align::Center),
                             |ui| {
-                                ui.label(RichText::new("PREDATOR").size(15.0).strong().color(CYAN));
+                                ui.label(
+                                    RichText::new("OPENHELIOS").size(15.0).strong().color(CYAN),
+                                );
                                 ui.label(
                                     RichText::new(format!(
                                         "{} / {}",
@@ -536,12 +533,7 @@ impl App {
                             },
                         );
                         cols[1].vertical_centered(|ui| {
-                            ui.label(
-                                RichText::new("PredatorSense")
-                                    .size(22.0)
-                                    .strong()
-                                    .color(TEXT),
-                            );
+                            ui.label(RichText::new("OpenHelios").size(22.0).strong().color(TEXT));
                         });
                         cols[2].with_layout(
                             egui::Layout::right_to_left(egui::Align::Center),
@@ -585,9 +577,9 @@ impl App {
                     .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
                     .show(ui, |ui| {
                         ui.add_space(6.0);
-                        ui.label(RichText::new("PREDATOR").size(22.0).strong().color(CYAN));
+                        ui.label(RichText::new("OPENHELIOS").size(22.0).strong().color(CYAN));
                         ui.label(
-                            RichText::new("SENSE / LINUX")
+                            RichText::new("LINUX CONTROL")
                                 .size(10.5)
                                 .color(Color32::from_gray(150)),
                         );
@@ -682,7 +674,7 @@ impl App {
                                 .color(Color32::from_gray(100)),
                         );
                         ui.label(
-                            RichText::new("PredatorSense Linux / PH717")
+                            RichText::new("OpenHelios / PH717")
                                 .small()
                                 .color(Color32::from_gray(100)),
                         );
@@ -857,7 +849,7 @@ impl eframe::App for App {
                     if let Err(e) =
                         image::save_buffer(&path, &bytes, width, height, image::ColorType::Rgba8)
                     {
-                        eprintln!("predator-sense-gui: screenshot failed: {e}");
+                        eprintln!("openhelios-gui: screenshot failed: {e}");
                     }
                     ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                 });
@@ -905,11 +897,11 @@ fn main() -> eframe::Result<()> {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size(inner_size)
             .with_min_inner_size([800.0, 600.0])
-            .with_title("PredatorSense Linux"),
+            .with_title("OpenHelios"),
         ..Default::default()
     };
     eframe::run_native(
-        "PredatorSense Linux",
+        "OpenHelios",
         options,
         Box::new(move |cc| {
             Ok(Box::new(App::new(

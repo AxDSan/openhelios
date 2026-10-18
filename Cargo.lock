@@ -1759,6 +1759,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
+name = "openhelios"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "openhelios-core",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
+name = "openhelios-core"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "dirs",
+ "libc",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
+name = "openhelios-gui"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "eframe",
+ "egui",
+ "image",
+ "openhelios-core",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1924,45 +1963,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10ab3eb7f3becc3a1cbc4f2c6f20267996cfc1a6467a873763411b136a122715"
 dependencies = [
  "portable-atomic",
-]
-
-[[package]]
-name = "predator-core"
-version = "0.1.2"
-dependencies = [
- "chrono",
- "dirs",
- "libc",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "toml",
-]
-
-[[package]]
-name = "predator-sense"
-version = "0.1.2"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "predator-core",
- "serde_json",
- "toml",
-]
-
-[[package]]
-name = "predator-sense-gui"
-version = "0.1.2"
-dependencies = [
- "anyhow",
- "chrono",
- "eframe",
- "egui",
- "image",
- "predator-core",
- "serde_json",
- "toml",
 ]
 
 [[package]]

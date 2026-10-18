@@ -1,4 +1,5 @@
-//! Wire formats recovered from PredatorSense 3.00.3196 and 3.00.3152.
+//! Functional interface facts identified from public tables, probes and static
+//! inspection (see docs/PROVENANCE.md); no vendor code is copied.
 //!
 //! All WMI payloads are little-endian u64 values unless noted otherwise. The
 //! method ids are `Arg1` of the ACPI `WMBH` dispatcher.

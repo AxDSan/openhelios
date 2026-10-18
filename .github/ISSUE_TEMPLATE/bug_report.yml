@@ -39,7 +39,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: PredatorSense Linux version
+      label: OpenHelios version
       placeholder: 0.1.0 (commit)
     validations:
       required: true
@@ -47,7 +47,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: predator-sense doctor
+      label: openhelios doctor
       description: Paste the complete output (redact personal data).
       render: shell
     validations:

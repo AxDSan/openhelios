@@ -5,7 +5,7 @@
 - Replace the hardware-control surface of Acer PredatorSense on Linux without
   flashing firmware.
 - Keep every write reversible, observable and recoverable.
-- Keep the protocol knowledge in one place (`predator-core`) so the CLI and GUI
+- Keep the protocol knowledge in one place (`openhelios-core`) so the CLI and GUI
   cannot drift.
 - Make the kernel boundary as small as possible: one WMI method call and one
   device node.
@@ -15,11 +15,11 @@
 ```mermaid
 flowchart TB
     subgraph Frontends
-        GUI["predator-sense-gui<br/>egui · 1320×900"]
-        CLI["predator-sense<br/>clap CLI"]
+        GUI["openhelios-gui<br/>egui · 1320×900"]
+        CLI["openhelios<br/>clap CLI"]
     end
 
-    subgraph Core["predator-core"]
+    subgraph Core["openhelios-core"]
         CTRL["Controller<br/>policy · profiles · snapshots"]
         WMI["Wmi / AcerGaming<br/>method ids · payloads"]
         HID["HidKeyboard<br/>feature/output reports"]
@@ -105,22 +105,23 @@ profile or the safe state.
 
 | path | contents |
 |---|---|
-| `~/.config/predator-sense/profiles/*.toml` | user profiles |
-| `~/.local/state/predator-sense/snapshots/*.json` | recovery snapshots |
-| `~/.local/state/predator-sense/snapshots/latest.json` | most recent snapshot |
+| `~/.config/openhelios/profiles/*.toml` | user profiles |
+| `~/.local/state/openhelios/snapshots/*.json` | recovery snapshots |
+| `~/.local/state/openhelios/snapshots/latest.json` | most recent snapshot |
 
-The pre-rename `~/.config/acer-lighting` and
-`~/.local/state/acer-lighting` directories are copied once on first use; the
-originals are left untouched.
+The legacy `~/.config/predator-sense`, `~/.config/acer-lighting`,
+`~/.local/state/predator-sense` and `~/.local/state/acer-lighting` directories
+are copied once on first use (newest legacy name first); the originals are left
+untouched.
 
 ## Packaging
 
 - `packaging/install.sh` builds the workspace, installs the binaries, creates
-  the `predator-sense` group, installs the udev rule, desktop entry, docs,
+  the `openhelios` group, installs the udev rule, desktop entry, docs,
   systemd unit and DKMS module.
-- `packaging/99-predator-sense.rules` grants the group and seat uaccess access
+- `packaging/99-openhelios.rules` grants the group and seat uaccess access
   to the vendor HID and the WMI device.
-- `systemd/predator-sense-apply.service` is an enabled oneshot unit that
+- `systemd/openhelios-apply.service` is an enabled oneshot unit that
   applies the `default` profile at boot.
 - `packaging/uninstall.sh` removes the installed files and DKMS module while
   preserving user profiles and snapshots.

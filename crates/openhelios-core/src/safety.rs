@@ -111,7 +111,7 @@ pub fn load_latest() -> Result<Snapshot> {
     let path = latest_path();
     if !path.exists() {
         return Err(Error::Config(format!(
-            "no snapshot at {}; run `predator-sense snapshot` first",
+            "no snapshot at {}; run `openhelios snapshot` first",
             path.display()
         )));
     }

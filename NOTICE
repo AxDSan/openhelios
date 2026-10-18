@@ -1,4 +1,4 @@
-PredatorSense Linux
+OpenHelios
 Copyright (C) 2026 Abdias J and contributors
 
 This project is licensed under the GNU General Public License, version 2 or
@@ -8,6 +8,12 @@ PredatorSense, Predator, Helios, Acer and related marks are trademarks of Acer
 Incorporated. This project is an independent, unofficial Linux reimplementation.
 It is not affiliated with, endorsed by, or supported by Acer.
 
-This repository contains only original code and factual protocol descriptions.
-It does not include or redistribute Acer firmware, decompiled application
-source, leaked source, or other proprietary material.
+This repository and its releases contain only original code, factual protocol
+descriptions and screenshots of OpenHelios. They do not include or
+redistribute Acer firmware, decompiled application source, vendor binaries,
+extracted assets, `.xtu` profiles, or other proprietary material.
+
+OpenHelios is an independent reimplementation, not a certified clean room.
+The same maintainer performed the interface research and wrote the
+implementation; no vendor code or expressive assets were copied. See
+docs/PROVENANCE.md for the factual record.

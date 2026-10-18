@@ -1,16 +1,16 @@
 [workspace]
-members = ["crates/predator-core", "crates/predator-sense", "crates/predator-sense-gui"]
+members = ["crates/openhelios-core", "crates/openhelios", "crates/openhelios-gui"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 license = "GPL-2.0-or-later"
-authors = ["PredatorSense Linux contributors"]
-repository = "https://github.com/AxDSan/predator-sense-linux"
-homepage = "https://github.com/AxDSan/predator-sense-linux"
+authors = ["OpenHelios contributors"]
+repository = "https://github.com/AxDSan/openhelios"
+homepage = "https://github.com/AxDSan/openhelios"
 rust-version = "1.85"
-description = "Unofficial Linux control panel for Acer Predator lighting, fans, MagForce and overclocking"
+description = "Open Linux control panel for Acer Predator Helios 700 lighting, fans, MagForce and overclocking"
 
 [workspace.dependencies]
 anyhow = "1"

@@ -12,7 +12,7 @@
 Please **do not open a public issue** for a security problem.
 
 Use GitHub's private vulnerability reporting:
-[Security Advisories](https://github.com/AxDSan/predator-sense-linux/security/advisories/new).
+[Security Advisories](https://github.com/AxDSan/openhelios/security/advisories/new).
 
 Include:
 
@@ -48,7 +48,7 @@ Out of scope:
 
 ## Trust boundaries and known tradeoffs
 
-- **Dedicated group.** The installer creates `predator-sense` and grants it
+- **Dedicated group.** The installer creates `openhelios` and grants it
   access to the vendor HID interface and the WMI device. This is intentionally
   narrower than the `input` group: it does not grant read access to every
   keyboard. Members can still send arbitrary frames to this one keyboard and

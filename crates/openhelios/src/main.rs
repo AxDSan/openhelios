@@ -3,20 +3,20 @@ use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use predator_core::keymap::{self, KeyDef};
-use predator_core::lighting::{LightingMode, LightingState};
-use predator_core::profile::{FanKind, LightingProfile, OcProfile, Profile, ProfileStore};
-use predator_core::protocol::{Rgb, EFFECTS};
-use predator_core::safety::{self, SafetyPolicy};
-use predator_core::turbo::TurboState;
-use predator_core::wmi::hexs;
-use predator_core::{oc, Controller, Monitor};
+use openhelios_core::keymap::{self, KeyDef};
+use openhelios_core::lighting::{LightingMode, LightingState};
+use openhelios_core::profile::{FanKind, LightingProfile, OcProfile, Profile, ProfileStore};
+use openhelios_core::protocol::{Rgb, EFFECTS};
+use openhelios_core::safety::{self, SafetyPolicy};
+use openhelios_core::turbo::TurboState;
+use openhelios_core::wmi::hexs;
+use openhelios_core::{oc, Controller, Monitor};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "predator-sense",
+    name = "openhelios",
     version,
-    about = "PredatorSense Linux (unofficial) — Acer Predator PH717 lighting, fan and OC control",
+    about = "OpenHelios (unofficial) — Acer Predator PH717 lighting, fan and OC control",
     long_about = None
 )]
 struct Cli {
@@ -550,7 +550,7 @@ fn doctor(c: &Controller, json: bool) -> Result<()> {
     Ok(())
 }
 
-fn print_sample(s: &predator_core::Sample) {
+fn print_sample(s: &openhelios_core::Sample) {
     let opt = |v: Option<f32>| v.map(|x| format!("{x:.1}")).unwrap_or_else(|| "—".into());
     println!(
         "{}  CPU {}°C {}MHz load {}% {}W | GPU {} {}°C {}% {}MHz {}W | fans {} | RAM {}/{}GB | AC {} batt {}% {}",
@@ -636,7 +636,7 @@ fn lighting(c: &mut Controller, cmd: &LightingSub) -> Result<()> {
         } => {
             let effect = match (id, name) {
                 (Some(v), _) => *v,
-                (None, Some(n)) => predator_core::protocol::effect_id(n)
+                (None, Some(n)) => openhelios_core::protocol::effect_id(n)
                     .with_context(|| format!("unknown effect {n:?}; see `lighting list`"))?,
                 (None, None) => 2,
             };
@@ -1326,7 +1326,7 @@ fn install_hints() {
             .unwrap_or_else(|| "<repo>".into())
     });
     eprintln!("installation hints");
-    eprintln!("  udev:   sudo cp packaging/99-predator-sense.rules /etc/udev/rules.d/");
+    eprintln!("  udev:   sudo cp packaging/99-openhelios.rules /etc/udev/rules.d/");
     eprintln!("          sudo udevadm control --reload && sudo udevadm trigger");
     eprintln!("  module: sudo dkms install kmod/acer_gaming_probe/1.0 -k $(uname -r)  # or: cd kmod && sudo make load");
     eprintln!("  repo:   {repo}");

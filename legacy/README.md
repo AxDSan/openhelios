@@ -4,7 +4,7 @@ This directory contains the pre-Rust toolkit that was used to bring up the
 touchpad ring and to probe the WMI/HID channels.
 
 It is **unsupported** and kept for reference only. Use the Rust binaries
-(`predator-sense`, `predator-sense-gui`) for everything.
+(`openhelios`, `openhelios-gui`; formerly `predator-sense`) for everything.
 
 | file | purpose |
 |---|---|

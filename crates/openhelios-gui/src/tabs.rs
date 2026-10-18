@@ -1,12 +1,12 @@
 use std::path::Path;
 
 use eframe::egui::{self, Color32, ComboBox, DragValue, RichText, Slider};
-use predator_core::keymap;
-use predator_core::lighting::LightingMode;
-use predator_core::oc;
-use predator_core::profile::{FanKind, LightingProfile};
-use predator_core::protocol::{Rgb, EFFECTS};
-use predator_core::safety;
+use openhelios_core::keymap;
+use openhelios_core::lighting::LightingMode;
+use openhelios_core::oc;
+use openhelios_core::profile::{FanKind, LightingProfile};
+use openhelios_core::protocol::{Rgb, EFFECTS};
+use openhelios_core::safety;
 
 use crate::keyboard::{self, metric, sparkline};
 use crate::{App, CYAN, TEXT};
@@ -252,9 +252,7 @@ impl App {
                     .as_deref()
                     .unwrap_or("keyboard HID device unavailable"),
             );
-            ui.label(
-                "Install packaging/99-predator-sense.rules and add your user to the input group.",
-            );
+            ui.label("Install packaging/99-openhelios.rules and add your user to the input group.");
         }
 
         ui.add_space(6.0);
@@ -283,7 +281,7 @@ impl App {
         if self.state.mode == LightingMode::Effect {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Effect");
-                let current = predator_core::protocol::effect_name(self.state.effect);
+                let current = openhelios_core::protocol::effect_name(self.state.effect);
                 ComboBox::from_id_salt("effect")
                     .selected_text(current)
                     .show_ui(ui, |ui| {
@@ -442,7 +440,7 @@ impl App {
     pub(crate) fn fans_tab(&mut self, ui: &mut egui::Ui) {
         ui.heading("Fan control");
         ui.label(
-            RichText::new("Manual duty is written to the EC through WMI methods 14/16, the same payloads PredatorSense uses.")
+            RichText::new("Manual duty is written to the EC through WMI methods 14/16, the same payloads the Windows app uses.")
                 .color(Color32::from_gray(150)),
         );
         ui.add_space(6.0);
@@ -973,7 +971,7 @@ impl App {
                     Some(wmi) => match parse_hex(&self.raw_payload) {
                         Err(e) => format!("payload: {e}"),
                         Ok(bytes) => match wmi.raw(self.raw_method, &bytes) {
-                            Ok(r) => format!("response: {}", predator_core::wmi::hexs(&r)),
+                            Ok(r) => format!("response: {}", openhelios_core::wmi::hexs(&r)),
                             Err(e) => format!("error: {e}"),
                         },
                     },
@@ -996,7 +994,7 @@ impl App {
                         let mut cmd = [0u8; 8];
                         cmd[0] = self.hid_opcode;
                         match hid.raw_get(cmd) {
-                            Ok(r) => format!("response: {}", predator_core::wmi::hexs(&r)),
+                            Ok(r) => format!("response: {}", openhelios_core::wmi::hexs(&r)),
                             Err(e) => format!("error: {e}"),
                         }
                     }
@@ -1077,12 +1075,12 @@ impl App {
         ui.add_space(10.0);
         ui.separator();
         ui.heading("If something goes wrong");
-        ui.label("1. Press PANIC RESET, or run: predator-sense panic");
+        ui.label("1. Press PANIC RESET, or run: openhelios panic");
         ui.label(
             "2. If the keyboard is unresponsive, use an external USB keyboard and power-cycle.",
         );
         ui.label("3. Hold the power button for 15 s (EC reset), then boot with module_blacklist=acer_gaming_probe if needed.");
-        ui.label("4. For OC instability: enter the BIOS, restore defaults, then run: predator-sense oc cpu 0");
+        ui.label("4. For OC instability: enter the BIOS, restore defaults, then run: openhelios oc cpu 0");
         ui.label("5. Remove the udev rule and DKMS module to return to a stock system.");
         if ui.button("Open recovery guide").clicked() {
             let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/RECOVERY.md");
@@ -1275,7 +1273,7 @@ impl App {
                         ("game keys", hid.get_gamekeys()),
                     ] {
                         lines.push(match r {
-                            Ok(v) => format!("{label:14} {}", predator_core::wmi::hexs(&v)),
+                            Ok(v) => format!("{label:14} {}", openhelios_core::wmi::hexs(&v)),
                             Err(e) => format!("{label:14} error: {e}"),
                         });
                     }
@@ -1311,7 +1309,7 @@ impl App {
     pub(crate) fn power_tab(&mut self, ui: &mut egui::Ui) {
         ui.heading("Power / GPU tuning");
         ui.label(
-            RichText::new("Linux equivalents of the PredatorSense XTU/NVAPI layer. Acer ships the .xtu profiles encrypted, so these controls set the same class of limits directly through powercap and the NVIDIA driver. Writes need root and --allow-oc.")
+            RichText::new("Linux equivalents of the Windows XTU/NVAPI layer. Acer ships the .xtu profiles encrypted, so these controls set the same class of limits directly through powercap and the NVIDIA driver. Writes need root and --allow-oc.")
                 .color(Color32::from_gray(160)),
         );
         ui.add_space(6.0);

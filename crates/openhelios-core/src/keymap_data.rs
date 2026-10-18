@@ -1,4 +1,4 @@
-// Generated from the PredatorSense PH717-72 en-us keyboard layout (Acer 3.00.3152).
+// Functional key-position map for the PH717-72 en-us layout; see docs/PROVENANCE.md.
 // tag = hardware LED index used in the 512-byte HID colour buffer.
 pub struct KeyDef { pub tag: u8, pub name: &'static str, pub x: f32, pub y: f32, pub w: f32, pub h: f32 }
 

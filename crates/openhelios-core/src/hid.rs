@@ -1,6 +1,7 @@
 //! Vendor HID channel for the 0d62:9a1b keyboard.
 //!
-//! Recovered from PredatorSense's `PSAdminAgent.exe` (`KeyboardUSBControl`):
+//! Functional HID command facts identified for interoperability (see
+//! docs/PROVENANCE.md); no vendor code is copied.
 //!
 //! * feature report: report id `0`, then an 8-byte command whose byte 7 is
 //!   `~sum(bytes[0..6])`; the report is 9 bytes in total;

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the Rust control panel, udev rule, desktop entry and DKMS module.
+# Install OpenHelios: Rust binaries, udev rule, desktop entry and DKMS module.
 # Review the script before running it; it uses sudo and touches /etc.
 set -euo pipefail
 
@@ -7,11 +7,22 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFIX="${PREFIX:-/usr/local}"
 SUDO="${SUDO:-sudo}"
 
-echo "==> removing legacy acer-lighting install names"
-$SUDO rm -f "$PREFIX/bin/acer-lighting" "$PREFIX/bin/acer-lighting-gui"
-$SUDO rm -f /etc/udev/rules.d/99-acer-lighting.rules
-$SUDO rm -f /usr/share/applications/acer-lighting.desktop
-$SUDO rm -f /etc/systemd/system/acer-lighting-apply.service
+echo "==> removing legacy install names"
+for bin in acer-lighting acer-lighting-gui predator-sense predator-sense-gui; do
+    $SUDO rm -f "$PREFIX/bin/$bin"
+done
+for rule in 99-acer-lighting.rules 99-predator-sense.rules; do
+    $SUDO rm -f "/etc/udev/rules.d/$rule"
+done
+for desktop in acer-lighting.desktop predator-sense.desktop; do
+    $SUDO rm -f "/usr/share/applications/$desktop"
+done
+for service in acer-lighting-apply predator-sense-apply; do
+    $SUDO systemctl disable --now "$service.service" 2>/dev/null || true
+    $SUDO rm -f "/etc/systemd/system/$service.service"
+done
+$SUDO systemctl disable --now acer-ring-off.service 2>/dev/null || true
+$SUDO rm -rf /usr/local/share/doc/predator-sense
 
 if [[ "${RELEASE:-1}" == "1" ]]; then
     echo "==> building release binaries"
@@ -24,41 +35,40 @@ else
 fi
 
 echo "==> installing binaries to $PREFIX/bin"
-$SUDO install -Dm755 "$BIN/predator-sense" "$PREFIX/bin/predator-sense"
-$SUDO install -Dm755 "$BIN/predator-sense-gui" "$PREFIX/bin/predator-sense-gui"
+$SUDO install -Dm755 "$BIN/openhelios" "$PREFIX/bin/openhelios"
+$SUDO install -Dm755 "$BIN/openhelios-gui" "$PREFIX/bin/openhelios-gui"
 
-echo "==> creating predator-sense group"
-if ! getent group predator-sense >/dev/null 2>&1; then
-    $SUDO groupadd --system predator-sense
+echo "==> creating openhelios group"
+if ! getent group openhelios >/dev/null 2>&1; then
+    $SUDO groupadd --system openhelios
 fi
 TARGET_USER="${SUDO_USER:-$(id -un)}"
 if [ "$TARGET_USER" != "root" ]; then
-    $SUDO usermod -aG predator-sense "$TARGET_USER" || true
+    $SUDO usermod -aG openhelios "$TARGET_USER" || true
 fi
 
 echo "==> installing udev rule"
-$SUDO install -Dm644 "$ROOT/packaging/99-predator-sense.rules" /etc/udev/rules.d/99-predator-sense.rules
+$SUDO install -Dm644 "$ROOT/packaging/99-openhelios.rules" /etc/udev/rules.d/99-openhelios.rules
 $SUDO udevadm control --reload
 $SUDO udevadm trigger --subsystem-match=hidraw || true
 $SUDO udevadm trigger --name-match=/dev/acer_gaming_wmi || true
 
 echo "==> installing documentation"
-$SUDO install -Dm644 "$ROOT/docs/RECOVERY.md" /usr/local/share/doc/predator-sense/RECOVERY.md
-$SUDO install -Dm644 "$ROOT/docs/PARITY.md" /usr/local/share/doc/predator-sense/PARITY.md
+$SUDO install -Dm644 "$ROOT/docs/RECOVERY.md" /usr/local/share/doc/openhelios/RECOVERY.md
+$SUDO install -Dm644 "$ROOT/docs/PARITY.md" /usr/local/share/doc/openhelios/PARITY.md
+$SUDO install -Dm644 "$ROOT/docs/PROVENANCE.md" /usr/local/share/doc/openhelios/PROVENANCE.md
 
 echo "==> installing desktop entry"
-$SUDO install -Dm644 "$ROOT/packaging/predator-sense.desktop" /usr/share/applications/predator-sense.desktop
+$SUDO install -Dm644 "$ROOT/packaging/openhelios.desktop" /usr/share/applications/openhelios.desktop
 $SUDO update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 
 echo "==> installing and enabling the boot profile service"
 TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
 sed "s|__HOME__|$TARGET_HOME|" \
-    "$ROOT/systemd/predator-sense-apply.service" \
-    | $SUDO tee /etc/systemd/system/predator-sense-apply.service >/dev/null
+    "$ROOT/systemd/openhelios-apply.service" \
+    | $SUDO tee /etc/systemd/system/openhelios-apply.service >/dev/null
 $SUDO systemctl daemon-reload
-$SUDO systemctl disable --now acer-ring-off.service 2>/dev/null || true
-$SUDO systemctl disable --now acer-lighting-apply.service 2>/dev/null || true
-$SUDO systemctl enable predator-sense-apply.service
+$SUDO systemctl enable openhelios-apply.service
 
 if command -v dkms >/dev/null 2>&1; then
     echo "==> installing DKMS module"
@@ -77,14 +87,14 @@ fi
 
 echo
 echo "Installed."
-echo "  GUI:  predator-sense-gui"
-echo "  CLI:  predator-sense doctor"
+echo "  GUI:  openhelios-gui"
+echo "  CLI:  openhelios doctor"
 echo
-echo "Access is granted to the predator-sense group (and seat uaccess)."
-echo "If the keyboard is not detected, log out and back in, then run:"
-echo "  predator-sense doctor"
+echo "Access is granted to the openhelios group (and seat uaccess)."
+echo "If the keyboard or WMI node is not detected, log out and back in, then run:"
+echo "  openhelios doctor"
 echo
-echo "The saved default profile is applied at boot by predator-sense-apply.service."
-echo "Disable it with: sudo systemctl disable --now predator-sense-apply.service"
+echo "The saved default profile is applied at boot by openhelios-apply.service."
+echo "Disable it with: sudo systemctl disable --now openhelios-apply.service"
 echo
 echo "Read docs/RECOVERY.md before using overclocking or changing boot services."

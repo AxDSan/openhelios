@@ -3,9 +3,9 @@ use std::collections::{HashSet, VecDeque};
 use eframe::egui::{
     self, Align2, Color32, FontId, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Vec2,
 };
-use predator_core::keymap::{self, KEYS};
-use predator_core::monitor::HistoryPoint;
-use predator_core::protocol::Rgb;
+use openhelios_core::keymap::{self, KEYS};
+use openhelios_core::monitor::HistoryPoint;
+use openhelios_core::protocol::Rgb;
 
 pub fn rgb_color(c: Rgb) -> Color32 {
     Color32::from_rgb(c.r, c.g, c.b)
@@ -184,7 +184,7 @@ pub fn sparkline(ui: &mut egui::Ui, history: &VecDeque<HistoryPoint>) {
     }
 }
 
-/// A PredatorSense-style circular gauge.
+/// A OpenHelios circular gauge.
 pub fn gauge(
     ui: &mut egui::Ui,
     label: &str,

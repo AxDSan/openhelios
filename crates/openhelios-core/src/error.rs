@@ -17,9 +17,7 @@ pub enum Error {
     #[error("HID error: {0}")]
     Hid(String),
 
-    #[error(
-        "permission denied for {path}; install packaging/99-predator-sense.rules or run as root"
-    )]
+    #[error("permission denied for {path}; install packaging/99-openhelios.rules or run as root")]
     Permission { path: PathBuf },
 
     #[error("safety: {0}")]

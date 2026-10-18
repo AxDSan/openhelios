@@ -1,16 +1,16 @@
 [Unit]
-Description=PredatorSense Linux: apply the saved lighting/fan/overclock profile
-Documentation=file:///usr/local/share/doc/predator-sense/RECOVERY.md
+Description=OpenHelios: apply the saved lighting/fan/overclock profile
+Documentation=file:///usr/local/share/doc/openhelios/RECOVERY.md
 After=systemd-modules-load.service
 Wants=systemd-modules-load.service
-ConditionPathExists=/usr/local/bin/predator-sense
+ConditionPathExists=/usr/local/bin/openhelios
 
 [Service]
 Type=oneshot
 Environment=HOME=__HOME__
 # Wait for the keyboard HID and WMI device nodes to appear at boot.
 ExecStartPre=-/usr/bin/udevadm settle --timeout=10
-ExecStart=/usr/local/bin/predator-sense --allow-oc profile apply default
+ExecStart=/usr/local/bin/openhelios --allow-oc profile apply default
 RemainAfterExit=yes
 Nice=10
 
