@@ -135,6 +135,7 @@ The HID device is root-owned by default. The shipped udev rule is:
 
 ```
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d62", ATTRS{idProduct}=="9a1b", MODE="0660", GROUP="predator-sense", TAG+="uaccess"
+KERNEL=="acer_gaming_wmi", MODE="0660", GROUP="predator-sense"
 ```
 
 If `predator-sense doctor` reports `permission denied`:
@@ -143,14 +144,17 @@ If `predator-sense doctor` reports `permission denied`:
 sudo cp packaging/99-predator-sense.rules /etc/udev/rules.d/
 sudo udevadm control --reload
 sudo udevadm trigger --subsystem-match=hidraw
+sudo udevadm trigger --name-match=/dev/acer_gaming_wmi
 sudo usermod -aG predator-sense "$USER"   # then log out and back in
 ```
 
 The dedicated `predator-sense` group only grants access to this keyboard and
 the WMI bridge; it does not grant access to every input device. The `TAG+="uaccess"` fallback only works on a normal local seat.
 
-The WMI device is created with mode `0666` by the probe module, so it does not
-need an extra permission rule.
+The probe module creates `/dev/acer_gaming_wmi` with a permissive mode; the
+shipped udev rule narrows it to the `predator-sense` group. Members of that
+group can send WMI method ids to the EC, so treat group membership as hardware
+control access.
 
 ## 7. Backups
 
