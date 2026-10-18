@@ -4,4 +4,6 @@
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0d62", ATTRS{idProduct}=="9a1b", MODE="0660", GROUP="predator-sense", TAG+="uaccess"
 
 # ACPI-WMI gaming-function bridge created by acer_gaming_probe.ko.
-KERNEL=="acer_gaming_wmi", MODE="0660", GROUP="predator-sense"
+# The WMI node is virtual, so it has no udev path/seat of its own. Tag it with
+# the active seat and uaccess so the logged-in user gets an ACL immediately.
+KERNEL=="acer_gaming_wmi", MODE="0660", GROUP="predator-sense", TAG+="seat", TAG+="uaccess", ENV{ID_FOR_SEAT}="acer-gaming-wmi", ENV{ID_SEAT}="seat0"

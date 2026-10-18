@@ -35,6 +35,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The virtual WMI node now receives a seat/uaccess ACL, so fan, ring and
+  keyboard-slide reads work immediately after install without a re-login.
+- Slide-triggered Turbo no longer requires the separate "allow OC" switch;
+  `auto_turbo` is the opt-in, and AC/battery checks still apply.
 - The frame border could cut through headings and controls; the content is now
   inset inside the frame.
 - Fan cards clipped "duty %" and stacked Apply unevenly; both cards now fill

@@ -625,7 +625,7 @@ impl App {
                 .add_enabled(self.allow_oc, egui::Button::new("Apply Turbo now"))
                 .clicked()
             {
-                self.engage_turbo();
+                self.engage_turbo(false);
             }
             if ui
                 .add_enabled(self.turbo_active, egui::Button::new("Restore Turbo"))

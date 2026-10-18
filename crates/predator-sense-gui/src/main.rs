@@ -391,8 +391,8 @@ impl App {
         }
     }
 
-    pub(crate) fn engage_turbo(&mut self) {
-        if !self.allow_oc {
+    pub(crate) fn engage_turbo(&mut self, from_slide: bool) {
+        if !from_slide && !self.allow_oc {
             self.status = "Turbo needs the allow OC switch".to_string();
             return;
         }
@@ -749,17 +749,11 @@ impl eframe::App for App {
             self.last_slide = slide;
             match slide {
                 Some(false) if self.turbo_active => self.release_turbo(),
-                Some(true)
-                    if self.auto_turbo
-                        && self.allow_oc
-                        && !self.read_only
-                        && !self.turbo_active =>
-                {
-                    self.engage_turbo();
+                Some(true) if self.auto_turbo && !self.read_only && !self.turbo_active => {
+                    self.engage_turbo(true);
                 }
-                Some(true) if !self.auto_turbo || !self.allow_oc => {
-                    self.status =
-                        "keyboard slide engaged (Auto Turbo or allow OC is off)".to_string();
+                Some(true) if !self.auto_turbo => {
+                    self.status = "keyboard slide engaged (Auto Turbo is off)".to_string();
                 }
                 _ => {}
             }
