@@ -20,6 +20,9 @@ done
 for desktop in openhelios.desktop predator-sense.desktop acer-lighting.desktop; do
     $SUDO rm -f "/usr/share/applications/$desktop"
 done
+TARGET_USER="${SUDO_USER:-$(id -un)}"
+TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+$SUDO rm -f "$TARGET_HOME/.config/autostart/openhelios.desktop"
 for service in openhelios-apply predator-sense-apply acer-lighting-apply; do
     $SUDO rm -f "/etc/systemd/system/$service.service"
 done

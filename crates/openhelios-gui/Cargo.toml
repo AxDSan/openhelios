@@ -15,6 +15,9 @@ anyhow.workspace = true
 eframe.workspace = true
 egui.workspace = true
 serde_json.workspace = true
+serde.workspace = true
 toml.workspace = true
 chrono.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
+ksni = { version = "0.3", default-features = false, features = ["async-io", "blocking"] }
+winit = { version = "0.30", default-features = false, features = ["x11"] }

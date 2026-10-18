@@ -13,7 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg" alt="License: GPL-2.0-or-later"></a>
   <img src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" alt="Platform: Linux">
   <img src="https://img.shields.io/badge/rust-1.85%2B-orange.svg" alt="Rust 1.85+">
-  <img src="https://img.shields.io/badge/status-0.2.0-informational.svg" alt="Status: 0.2.0">
+  <img src="https://img.shields.io/badge/status-0.3.0-informational.svg" alt="Status: 0.3.0">
 </p>
 
 <p align="center">
@@ -144,6 +144,7 @@ inert or model-specific. See [`docs/PARITY.md`](docs/PARITY.md).
 | **Linux OC equivalents** | RAPL PL1/PL2, NVIDIA power limit, locked GPU clocks | Implemented |
 | **Turbo slide** | Hardware keyboard-slide watcher; fans/lights/OC apply and restore | Verified |
 | **Profiles** | TOML profiles, JSON snapshots, export/import, auto-save, boot-time apply (enabled) | Implemented |
+| **Startup / tray** | XDG autostart, start minimized to a StatusNotifierItem tray, close-to-tray | Implemented |
 | **Recovery** | `panic`, snapshot/restore, dry-run, read-only, `--allow-oc` gate | Implemented |
 
 See [`docs/PARITY.md`](docs/PARITY.md) for the full Windows-module inventory,
@@ -232,8 +233,9 @@ debug build). It:
 - installs `openhelios` and `openhelios-gui` to `/usr/local/bin`;
 - creates the `openhelios` group, adds the invoking user, and installs
   `99-openhelios.rules` (both device nodes also receive seat `uaccess`);
-- installs the desktop entry, the enabled `openhelios-apply.service`, and the
-  docs under `/usr/local/share/doc/openhelios`;
+- installs the desktop entry, the XDG autostart entry (start minimized to the
+  tray), the enabled `openhelios-apply.service`, and the docs under
+  `/usr/local/share/doc/openhelios`;
 - installs/refreshes the DKMS kernel module;
 - removes the legacy `acer-lighting` and `predator-sense` binaries, units,
   rules and desktop entries.
@@ -264,6 +266,7 @@ Config and state are migrated once from the legacy directories:
 ```sh
 openhelios doctor      # devices, permissions, kernel module, sensors
 openhelios-gui         # control panel
+openhelios-gui --minimized  # control panel hidden in the tray
 ```
 
 Both device nodes normally work immediately through seat `uaccess`. If
@@ -286,6 +289,28 @@ to settle, and applies `default.toml` at boot as root:
 sudo systemctl disable --now openhelios-apply.service   # opt out
 sudo systemctl status openhelios-apply.service          # verify
 ```
+
+### Startup and tray
+
+The installer adds `~/.config/autostart/openhelios.desktop`, so the GUI starts
+with the desktop session and opens in the tray. The GUI keeps that entry in
+sync from the `SYSTEM` block in the sidebar:
+
+- **start at login** writes or removes the autostart entry;
+- **start in tray** adds `--minimized` to the autostart command;
+- **close to tray** hides the window on the close button instead of quitting.
+
+`Quit OpenHelios` in the tray menu or the sidebar exits the process. Settings
+are stored in `~/.config/openhelios/gui.toml`; the autostart entry is
+`~/.config/autostart/openhelios.desktop`. The tray uses the
+StatusNotifierItem protocol: KDE, XFCE and most panels support it directly,
+while GNOME needs an AppIndicator extension. If no tray host answers, the GUI
+starts visibly instead of becoming unreachable.
+
+The GUI's windowing library (winit) cannot hide a native Wayland window, so the
+GUI opens through XWayland whenever `DISPLAY` is set. On a Wayland session
+without XWayland, closing and **Hide window** minimize instead, and `--minimized`
+starts visibly.
 
 The content area keeps a full-label sidebar and adds horizontal and vertical
 scrollbars plus a 16 px gutter inside the frame, so narrow windows never hide

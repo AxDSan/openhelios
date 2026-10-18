@@ -1,5 +1,7 @@
 mod keyboard;
+mod settings;
 mod tabs;
+mod tray;
 
 use std::collections::{HashSet, VecDeque};
 use std::path::Path;
@@ -18,6 +20,18 @@ use openhelios_core::profile::{
 };
 use openhelios_core::safety::{self, SafetyPolicy};
 use openhelios_core::Controller;
+use winit::platform::x11::EventLoopBuilderExtX11;
+
+use crate::settings::GuiSettings;
+use crate::tray::{TrayCommand, TrayEvent};
+
+#[derive(Clone, Debug)]
+enum TrayState {
+    Disabled,
+    Starting,
+    Ready,
+    Unavailable(String),
+}
 
 pub const CYAN: Color32 = Color32::from_rgb(0, 212, 232);
 pub const CYAN_DIM: Color32 = Color32::from_rgb(0, 125, 145);
@@ -185,6 +199,17 @@ pub struct App {
     turbo_backup: Option<Profile>,
     last_saved: String,
     last_persist: Instant,
+    settings: GuiSettings,
+    tray_rx: Receiver<TrayEvent>,
+    tray_state: TrayState,
+    hidden: bool,
+    /// winit cannot hide a native Wayland window; without X11 "hide" minimizes.
+    can_hide: bool,
+    /// eframe shows the window after its first paint; override that for a few
+    /// immediate frames so a tray start does not flash the window.
+    hide_frames: u8,
+    started_at: Instant,
+    quitting: bool,
 }
 
 impl App {
@@ -193,9 +218,24 @@ impl App {
         self_test: bool,
         initial_tab: Tab,
         screenshot_path: Option<String>,
+        start_hidden: bool,
+        can_hide: bool,
     ) -> Self {
         setup_theme(&cc.egui_ctx);
         let screenshot_path_is_set = screenshot_path.is_some();
+        let settings = GuiSettings::load();
+        let mut status = "ready".to_string();
+        let (tray_rx, tray_state) = if self_test || screenshot_path_is_set {
+            let (_tx, rx) = channel();
+            (rx, TrayState::Disabled)
+        } else {
+            (tray::spawn(cc.egui_ctx.clone()), TrayState::Starting)
+        };
+        if !self_test && !screenshot_path_is_set {
+            if let Err(e) = settings.sync_autostart() {
+                status = format!("autostart: {e}");
+            }
+        }
         let policy = SafetyPolicy::default();
         let controller = Controller::detect(policy);
         let store = ProfileStore::default();
@@ -238,7 +278,7 @@ impl App {
             tab: initial_tab,
             selected: HashSet::new(),
             paint,
-            status: "ready".to_string(),
+            status,
             read_only: false,
             dry_run: false,
             allow_oc: false,
@@ -289,6 +329,14 @@ impl App {
             turbo_backup: None,
             last_saved,
             last_persist: Instant::now(),
+            settings,
+            tray_rx,
+            tray_state,
+            hidden: start_hidden,
+            can_hide,
+            hide_frames: if start_hidden { 8 } else { 0 },
+            started_at: Instant::now(),
+            quitting: false,
         }
     }
 
@@ -315,6 +363,96 @@ impl App {
         p.name = self.profile_name.clone();
         p.validate();
         p
+    }
+
+    fn persist_settings(&mut self) {
+        let saved = self.settings.save();
+        let autostart = self.settings.sync_autostart();
+        self.status = match (saved, autostart) {
+            (Err(e), _) => format!("settings: {e}"),
+            (_, Err(e)) => format!("autostart: {e}"),
+            _ if self.settings.start_with_system => "start at login updated".to_string(),
+            _ => "start at login disabled".to_string(),
+        };
+    }
+
+    fn drain_tray(&mut self, ctx: &egui::Context) {
+        while let Ok(event) = self.tray_rx.try_recv() {
+            match event {
+                TrayEvent::Ready => self.tray_state = TrayState::Ready,
+                TrayEvent::Unavailable(error) => {
+                    self.tray_state = TrayState::Unavailable(error.clone());
+                    if self.hidden {
+                        self.show_window(ctx);
+                    }
+                    self.status = format!("tray unavailable: {error}");
+                }
+                TrayEvent::Command(TrayCommand::Show) => self.show_window(ctx),
+                TrayEvent::Command(TrayCommand::Hide) => self.hide_window(ctx),
+                TrayEvent::Command(TrayCommand::Toggle) => {
+                    if self.hidden {
+                        self.show_window(ctx);
+                    } else {
+                        self.hide_window(ctx);
+                    }
+                }
+                TrayEvent::Command(TrayCommand::Quit) => self.request_quit(ctx),
+            }
+        }
+    }
+
+    fn show_window(&mut self, ctx: &egui::Context) {
+        self.hidden = false;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+        ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+    }
+
+    fn hide_window(&mut self, ctx: &egui::Context) {
+        self.hidden = true;
+        if self.can_hide {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        } else {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
+        }
+    }
+
+    fn request_quit(&mut self, ctx: &egui::Context) {
+        self.quitting = true;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+    }
+
+    fn update_engine(&mut self) {
+        let slide = self.sample.slide_keyboard;
+        if slide != self.last_slide {
+            self.last_slide = slide;
+            match slide {
+                Some(false) if self.turbo_active => self.release_turbo(),
+                Some(true) if self.auto_turbo && !self.read_only && !self.turbo_active => {
+                    self.engage_turbo(true);
+                }
+                Some(true) if !self.auto_turbo => {
+                    self.status = "keyboard slide engaged (Auto Turbo is off)".to_string();
+                }
+                _ => {}
+            }
+        }
+
+        if self.last_persist.elapsed() >= Duration::from_secs(1) {
+            let profile = self.current_profile();
+            if let Ok(text) = toml::to_string_pretty(&profile) {
+                if text != self.last_saved {
+                    match self.store.save(&profile) {
+                        Ok(path) => {
+                            self.last_saved = text;
+                            self.status = format!("saved {}", path.display());
+                        }
+                        Err(e) => self.status = format!("autosave failed: {e}"),
+                    }
+                }
+            }
+            self.last_persist = Instant::now();
+        }
     }
 
     pub fn snapshot_now(&mut self) {
@@ -649,6 +787,56 @@ impl App {
                         ui.add_space(10.0);
                         ui.separator();
                         ui.label(
+                            RichText::new("SYSTEM")
+                                .small()
+                                .color(Color32::from_gray(130)),
+                        );
+                        let mut start_with_system = self.settings.start_with_system;
+                        if ui
+                            .checkbox(&mut start_with_system, "start at login")
+                            .changed()
+                        {
+                            self.settings.start_with_system = start_with_system;
+                            self.persist_settings();
+                        }
+                        let mut start_in_tray = self.settings.start_in_tray;
+                        if ui.checkbox(&mut start_in_tray, "start in tray").changed() {
+                            self.settings.start_in_tray = start_in_tray;
+                            self.persist_settings();
+                        }
+                        let mut close_to_tray = self.settings.close_to_tray;
+                        if ui.checkbox(&mut close_to_tray, "close to tray").changed() {
+                            self.settings.close_to_tray = close_to_tray;
+                            self.persist_settings();
+                        }
+                        match &self.tray_state {
+                            TrayState::Disabled => ui.label(
+                                RichText::new("tray: disabled")
+                                    .small()
+                                    .color(Color32::from_gray(120)),
+                            ),
+                            TrayState::Starting => ui.label(
+                                RichText::new("tray: starting")
+                                    .small()
+                                    .color(Color32::from_gray(150)),
+                            ),
+                            TrayState::Ready => ui.label(
+                                RichText::new("tray: ready")
+                                    .small()
+                                    .color(Color32::from_rgb(120, 230, 140)),
+                            ),
+                            TrayState::Unavailable(error) => ui.label(
+                                RichText::new(format!("tray: {error}"))
+                                    .small()
+                                    .color(Color32::from_rgb(255, 120, 120)),
+                            ),
+                        };
+                        if ui.button("Quit OpenHelios").clicked() {
+                            self.request_quit(ui.ctx());
+                        }
+                        ui.add_space(10.0);
+                        ui.separator();
+                        ui.label(
                             RichText::new("SNAPSHOT")
                                 .small()
                                 .color(Color32::from_gray(130)),
@@ -733,39 +921,49 @@ impl Drop for App {
 }
 
 impl eframe::App for App {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint_after(Duration::from_millis(250));
+        if self.self_test {
+            ctx.request_repaint();
+        }
+
+        self.drain_tray(ctx);
+
+        if self.hidden
+            && matches!(self.tray_state, TrayState::Starting)
+            && self.started_at.elapsed() >= Duration::from_secs(3)
+        {
+            self.show_window(ctx);
+            self.status = "tray did not start; showing the window".to_string();
+        }
+
+        if ctx.input(|i| i.viewport().close_requested())
+            && !self.quitting
+            && self.settings.close_to_tray
+            && matches!(self.tray_state, TrayState::Starting | TrayState::Ready)
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.hide_window(ctx);
+            self.status = if self.can_hide {
+                "running in the system tray".to_string()
+            } else {
+                "minimized: hiding needs XWayland, which this session lacks".to_string()
+            };
+        }
+
         self.drain_monitor();
+        self.update_engine();
 
-        let slide = self.sample.slide_keyboard;
-        if slide != self.last_slide {
-            self.last_slide = slide;
-            match slide {
-                Some(false) if self.turbo_active => self.release_turbo(),
-                Some(true) if self.auto_turbo && !self.read_only && !self.turbo_active => {
-                    self.engage_turbo(true);
-                }
-                Some(true) if !self.auto_turbo => {
-                    self.status = "keyboard slide engaged (Auto Turbo is off)".to_string();
-                }
-                _ => {}
+        if self.hidden && self.can_hide {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+            if self.hide_frames > 0 {
+                self.hide_frames -= 1;
+                ctx.request_repaint();
             }
         }
+    }
 
-        if self.last_persist.elapsed() >= Duration::from_secs(1) {
-            let profile = self.current_profile();
-            if let Ok(text) = toml::to_string_pretty(&profile) {
-                if text != self.last_saved {
-                    match self.store.save(&profile) {
-                        Ok(path) => {
-                            self.last_saved = text;
-                            self.status = format!("saved {}", path.display());
-                        }
-                        Err(e) => self.status = format!("autosave failed: {e}"),
-                    }
-                }
-            }
-            self.last_persist = Instant::now();
-        }
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         if self.self_test {
             self.tab = match self.frames % 9 {
                 0 => Tab::Dashboard,
@@ -863,7 +1061,6 @@ impl eframe::App for App {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
         }
-        ui.ctx().request_repaint_after(Duration::from_millis(500));
     }
 }
 
@@ -871,10 +1068,12 @@ fn main() -> eframe::Result<()> {
     let mut self_test = false;
     let mut initial_tab = Tab::Dashboard;
     let mut screenshot_path = None;
+    let mut start_hidden = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--self-test" => self_test = true,
+            "--minimized" | "--tray" => start_hidden = true,
             "--tab" => {
                 if let Some(value) = args.next() {
                     if let Some(tab) = Tab::parse(&value) {
@@ -888,16 +1087,31 @@ fn main() -> eframe::Result<()> {
             _ => {}
         }
     }
+    // winit's Wayland backend ignores `set_visible`, so a native Wayland window
+    // can never be hidden to the tray. Run on X11 (XWayland inside a Wayland
+    // session) whenever an X display is available.
+    let can_hide = std::env::var_os("DISPLAY").is_some_and(|display| !display.is_empty());
+    let start_hidden = start_hidden && can_hide && !self_test && screenshot_path.is_none();
     let inner_size = if screenshot_path.is_some() {
         [1500.0, 1000.0]
     } else {
         [1320.0, 900.0]
     };
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_inner_size(inner_size)
+        .with_min_inner_size([800.0, 600.0])
+        .with_title("OpenHelios")
+        .with_visible(!start_hidden);
+    if let Some(icon) = window_icon() {
+        viewport = viewport.with_icon(icon);
+    }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size(inner_size)
-            .with_min_inner_size([800.0, 600.0])
-            .with_title("OpenHelios"),
+        viewport,
+        event_loop_builder: can_hide.then(|| -> eframe::EventLoopBuilderHook {
+            Box::new(|builder| {
+                builder.with_x11();
+            })
+        }),
         ..Default::default()
     };
     eframe::run_native(
@@ -909,7 +1123,20 @@ fn main() -> eframe::Result<()> {
                 self_test,
                 initial_tab,
                 screenshot_path,
+                start_hidden,
+                can_hide,
             )))
         }),
     )
+}
+
+fn window_icon() -> Option<egui::IconData> {
+    let image = image::load_from_memory(include_bytes!("../../../assets/logo.png")).ok()?;
+    let image = image.into_rgba8();
+    let (width, height) = image.dimensions();
+    Some(egui::IconData {
+        rgba: image.into_raw(),
+        width,
+        height,
+    })
 }

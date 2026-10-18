@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=OpenHelios
+GenericName=Lighting, fan and overclock control
+Comment=Open Linux control for the Acer Predator PH717
+Exec=__PREFIX__/bin/openhelios-gui --minimized
+Icon=input-keyboard
+Terminal=false
+X-GNOME-Autostart-enabled=true

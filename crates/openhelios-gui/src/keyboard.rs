@@ -111,14 +111,20 @@ pub fn draw_keyboard(
     }
 }
 
-pub fn metric(ui: &mut egui::Ui, label: &str, value: impl Into<String>, accent: Color32) {
+pub fn metric(
+    ui: &mut egui::Ui,
+    label: &str,
+    value: impl Into<String>,
+    accent: Color32,
+    width: f32,
+) {
     egui::Frame::group(ui.style())
         .fill(Color32::from_rgb(12, 18, 24))
         .stroke(Stroke::new(1.0, Color32::from_rgb(24, 56, 66)))
         .inner_margin(egui::Margin::same(10))
         .show(ui, |ui| {
-            ui.set_min_width(142.0);
-            ui.vertical(|ui| {
+            ui.set_width((width - 20.0).max(80.0));
+            ui.vertical_centered(|ui| {
                 ui.label(RichText::new(label).small().color(Color32::from_gray(160)));
                 ui.label(RichText::new(value).size(23.0).strong().color(accent));
             });

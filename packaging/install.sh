@@ -62,8 +62,16 @@ echo "==> installing desktop entry"
 $SUDO install -Dm644 "$ROOT/packaging/openhelios.desktop" /usr/share/applications/openhelios.desktop
 $SUDO update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 
-echo "==> installing and enabling the boot profile service"
+echo "==> installing GUI autostart entry"
 TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+TARGET_GROUP="$(id -gn "$TARGET_USER")"
+$SUDO install -d -o "$TARGET_USER" -g "$TARGET_GROUP" "$TARGET_HOME/.config/autostart"
+sed "s|__PREFIX__|$PREFIX|" \
+    "$ROOT/packaging/openhelios-autostart.desktop" \
+    | $SUDO tee "$TARGET_HOME/.config/autostart/openhelios.desktop" >/dev/null
+$SUDO chown "$TARGET_USER:$TARGET_GROUP" "$TARGET_HOME/.config/autostart/openhelios.desktop"
+
+echo "==> installing and enabling the boot profile service"
 sed "s|__HOME__|$TARGET_HOME|" \
     "$ROOT/systemd/openhelios-apply.service" \
     | $SUDO tee /etc/systemd/system/openhelios-apply.service >/dev/null

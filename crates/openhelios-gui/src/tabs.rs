@@ -67,9 +67,30 @@ impl App {
         let cpu_clock = self.sample.cpu_freq_mhz.unwrap_or(0.0);
         let gpu_clock = self.sample.gpu_clock_mhz.unwrap_or(0.0);
         let gpu_load = self.sample.gpu_load.unwrap_or(0.0);
-        ui.columns(2, |cols| {
+        if ui.available_width() >= 480.0 {
+            ui.columns(2, |cols| {
+                keyboard::gauge(
+                    &mut cols[0],
+                    "CPU TEMPERATURE",
+                    cpu_temp,
+                    100.0,
+                    "°C",
+                    &format!("{cpu_clock:.0} MHz"),
+                    CYAN,
+                );
+                keyboard::gauge(
+                    &mut cols[1],
+                    "GPU TEMPERATURE",
+                    gpu_temp,
+                    100.0,
+                    "°C",
+                    &format!("{gpu_clock:.0} MHz · {gpu_load:.0}%"),
+                    Color32::from_rgb(90, 200, 255),
+                );
+            });
+        } else {
             keyboard::gauge(
-                &mut cols[0],
+                ui,
                 "CPU TEMPERATURE",
                 cpu_temp,
                 100.0,
@@ -78,7 +99,7 @@ impl App {
                 CYAN,
             );
             keyboard::gauge(
-                &mut cols[1],
+                ui,
                 "GPU TEMPERATURE",
                 gpu_temp,
                 100.0,
@@ -86,7 +107,7 @@ impl App {
                 &format!("{gpu_clock:.0} MHz · {gpu_load:.0}%"),
                 Color32::from_rgb(90, 200, 255),
             );
-        });
+        }
         ui.add_space(6.0);
 
         let s = &self.sample;
@@ -146,17 +167,28 @@ impl App {
                 Color32::from_rgb(180, 220, 255),
             ),
         ];
-        egui::Grid::new("home_metrics")
-            .num_columns(4)
-            .spacing([10.0, 8.0])
-            .show(ui, |ui| {
-                for (i, (label, value, color)) in metrics.iter().enumerate() {
-                    metric(ui, label, value.clone(), *color);
-                    if (i + 1) % 4 == 0 {
-                        ui.end_row();
+        let spacing = 10.0;
+        let available = ui.available_width();
+        let min_card = 165.0;
+        let max_card = 240.0;
+        let columns = (((available + spacing) / (min_card + spacing)).floor() as usize).clamp(1, 5);
+        let card_width = ((available - spacing * columns.saturating_sub(1) as f32)
+            / columns as f32)
+            .clamp(min_card, max_card);
+        for row in metrics.chunks(columns) {
+            let row_width =
+                card_width * row.len() as f32 + spacing * row.len().saturating_sub(1) as f32;
+            ui.horizontal(|ui| {
+                ui.add_space(((available - row_width) * 0.5).max(0.0));
+                for (index, (label, value, color)) in row.iter().enumerate() {
+                    if index > 0 {
+                        ui.add_space(spacing);
                     }
+                    metric(ui, label, value.clone(), *color, card_width);
                 }
             });
+            ui.add_space(8.0);
+        }
 
         ui.add_space(10.0);
         ui.label(

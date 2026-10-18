@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [0.3.0] — 2026-10-18
+
+### Added
+
+- The GUI starts with the desktop session through an XDG autostart entry and
+  opens minimized to a StatusNotifierItem tray icon. Closing the window hides
+  it to the tray instead of exiting. All three behaviours are switchable in
+  the sidebar and persisted in `~/.config/openhelios/gui.toml`. The window runs
+  through XWayland in Wayland sessions, because winit cannot hide a native
+  Wayland window; without XWayland, closing minimizes instead.
+- `openhelios-gui --minimized` starts the window hidden for autostart and
+  scripting.
+- The Home metric tiles now reflow from one to five columns, size themselves
+  to the available width, and center each row; gauges stack on narrow windows.
+
 ## [0.2.0] — 2026-10-18
 
 ### Changed
